@@ -2,26 +2,25 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
-    /**
-     * Load all env variables
-     */
+  /**
+   * Load all env variables
+   */
   const env = loadEnv(mode, process.cwd(), '');
 
   // Fallback for local development
   env.VITE_API_BASE = env.VITE_API_BASE || 'https://movieapi.gifted.co.ke';
 
-
   return {
-    plugins: [
-      react(),
-      tailwindcss(),
-    ],
+    plugins: [react(), tailwindcss()],
 
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        '@': path.resolve(rootDir, './src'),
       },
     },
 
@@ -29,9 +28,9 @@ export default defineConfig(({ mode }) => {
      * Environment variables exposed to client
      * ONLY expose variables prefixed with VITE_
      */
-      define: {
-        __APP_ENV__: JSON.stringify(env.VITE_APP_ENV),
-      },
+    define: {
+      __APP_ENV__: JSON.stringify(env.VITE_APP_ENV),
+    },
 
     server: {
       host: '0.0.0.0',
@@ -42,10 +41,7 @@ export default defineConfig(({ mode }) => {
        */
       hmr: process.env.DISABLE_HMR !== 'true',
 
-      watch:
-        process.env.DISABLE_HMR === 'true'
-          ? null
-          : {},
+      watch: process.env.DISABLE_HMR === 'true' ? null : {},
 
       /**
        * API Proxy
@@ -67,26 +63,23 @@ export default defineConfig(({ mode }) => {
           //   path.replace(/^\/api/, '/api'),
 
           configure: (proxy) => {
-            proxy.on(
-              'proxyReq',
-              (proxyReq) => {
-                /**
-                 * Inject API Key securely
-                 */
+            proxy.on('proxyReq', (proxyReq) => {
+              /**
+               * Inject API Key securely
+               */
 
-                proxyReq.setHeader(
-                  'Authorization',
-                  `Bearer ${env.VITE_API_KEY}`
-                );
+              proxyReq.setHeader(
+                'Authorization',
+                `Bearer ${env.VITE_API_KEY}`,
+              );
 
-                /**
-                 * Reduce CORS issues
-                 */
+              /**
+               * Reduce CORS issues
+               */
 
-                proxyReq.removeHeader('origin');
-                proxyReq.removeHeader('referer');
-              }
-            );
+              proxyReq.removeHeader('origin');
+              proxyReq.removeHeader('referer');
+            });
           },
         },
       },
@@ -103,19 +96,11 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            react: [
-              'react',
-              'react-dom',
-              'react-router-dom',
-            ],
+            react: ['react', 'react-dom', 'react-router-dom'],
 
-            query: [
-              '@tanstack/react-query',
-            ],
+            query: ['@tanstack/react-query'],
 
-            motion: [
-              'motion',
-            ],
+            motion: ['motion'],
           },
         },
       },

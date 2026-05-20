@@ -394,9 +394,9 @@ export default function Daratech() {
           <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping" />
           <div className="text-left">
             <h1 className="text-md font-black tracking-wider uppercase text-white flex items-center gap-1.5">
-              DARATECH CONTROL <span className="text-[10px] bg-red-600/20 text-red-500 font-extrabold px-1.5 py-0.5 rounded">SECURE</span>
+              LENZO CONTROL <span className="text-[10px] bg-red-600/20 text-red-500 font-extrabold px-1.5 py-0.5 rounded">SECURE</span>
             </h1>
-            <p className="text-[10px] text-white/50 uppercase tracking-widest">RUNFlix Internal Promotion & Analytics Panel</p>
+            <p className="text-[10px] text-white/50 uppercase tracking-widest">Lenzorah Internal Promotion & Analytics Panel</p>
           </div>
         </div>
 
