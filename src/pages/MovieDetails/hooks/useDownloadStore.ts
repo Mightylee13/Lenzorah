@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export interface DownloadHistoryItem {
   id: string;
@@ -7,7 +7,7 @@ export interface DownloadHistoryItem {
   filename: string;
   quality?: string;
   timestamp: number;
-  type: 'movie' | 'subtitle';
+  type: "movie" | "subtitle";
 }
 
 interface DownloadState {
@@ -15,7 +15,7 @@ interface DownloadState {
   history: DownloadHistoryItem[];
   setProgress: (id: string, progress: number, isComplete?: boolean) => void;
   removeProgress: (id: string) => void;
-  addToHistory: (item: Omit<DownloadHistoryItem, 'timestamp'>) => void;
+  addToHistory: (item: Omit<DownloadHistoryItem, "timestamp">) => void;
   removeFromHistory: (id: string) => void;
   clearHistory: () => void;
 }
@@ -64,8 +64,8 @@ export const useDownloadStore = create<DownloadState>()(
       },
     }),
     {
-      name: 'runflix-downloads',
+      name: "lenzorah-downloads",
       partialize: (state) => ({ history: state.history }), // Only persist history
-    }
-  )
+    },
+  ),
 );

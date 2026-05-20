@@ -1,0 +1,3 @@
+@echo off
+echo Building production bundle...
+npm run build

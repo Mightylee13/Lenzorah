@@ -1,30 +1,48 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchTrending, fetchHomepage } from '../api/client';
-import { Download, Star, Play, Info, ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { MovieCard } from '../components/MovieCard';
-import { MovieRow } from '../components/MovieRow';
-import { HeroSkeleton, MovieRowSkeleton } from '../components/ui/Skeleton';
-import { buildMoviePath } from '../utils/slug';
-import { formatRating } from '../utils/format';
-import { useRecentlyViewedStore } from '../stores/useRecentlyViewedStore';
-import { useWatchlistStore } from '../stores/useWatchlistStore';
-import { useSEO } from '../hooks/useSEO';
+import { useQuery } from "@tanstack/react-query";
+import { fetchTrending, fetchHomepage } from "../api/client";
+import {
+  Download,
+  Star,
+  Play,
+  Info,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { MovieCard } from "../components/MovieCard";
+import { MovieRow } from "../components/MovieRow";
+import { HeroSkeleton, MovieRowSkeleton } from "../components/ui/Skeleton";
+import { buildMoviePath } from "../utils/slug";
+import { formatRating } from "../utils/format";
+import { useRecentlyViewedStore } from "../stores/useRecentlyViewedStore";
+import { useWatchlistStore } from "../stores/useWatchlistStore";
+import { useSEO } from "../hooks/useSEO";
 
 export default function Home() {
   const navigate = useNavigate();
 
-  useSEO({ title: 'Home', description: 'Discover trending movies and TV series with fast downloads' });
+  useSEO({
+    title: "Home",
+    description: "Discover trending movies and TV series with fast downloads",
+  });
 
-  const { data: trending, isLoading: trendingLoading, error: trendingError } = useQuery({
-    queryKey: ['trending'],
+  const {
+    data: trending,
+    isLoading: trendingLoading,
+    error: trendingError,
+  } = useQuery({
+    queryKey: ["trending"],
     queryFn: fetchTrending,
   });
 
-  const { data: hpData, isLoading: hpLoading, error: hpError } = useQuery<any>({
-    queryKey: ['homepage'],
+  const {
+    data: hpData,
+    isLoading: hpLoading,
+    error: hpError,
+  } = useQuery<any>({
+    queryKey: ["homepage"],
     queryFn: fetchHomepage,
   });
 
@@ -33,21 +51,29 @@ export default function Home() {
   // Extract banner items
   const bannerItems = useMemo(() => {
     if (!hpData?.operatingList) return [];
-    const bannerSection = hpData.operatingList.find((op: any) => op.type === 'BANNER');
+    const bannerSection = hpData.operatingList.find(
+      (op: any) => op.type === "BANNER",
+    );
     return bannerSection?.banner?.items || [];
   }, [hpData]);
 
-  // Extract movie rows
-  const movieRows = useMemo(() => {
-    if (!hpData?.operatingList) return [];
-    return hpData.operatingList.filter(
-      (op: any) => op.type === 'SUBJECTS_MOVIE' && op.subjects?.length > 0
+  // Extract movie rows and split the popular row out
+  const { popularRow, otherMovieRows } = useMemo(() => {
+    if (!hpData?.operatingList) return { popularRow: null, otherMovieRows: [] };
+    const rows = hpData.operatingList.filter(
+      (op: any) => op.type === "SUBJECTS_MOVIE" && op.subjects?.length > 0,
     );
+    const pop = rows.find((r: any) =>
+      r.title?.toLowerCase().includes("popular"),
+    );
+    const others = rows.filter((r: any) => r !== pop);
+    return { popularRow: pop, otherMovieRows: others };
   }, [hpData]);
 
   // Hero banner rotation
   const [heroIndex, setHeroIndex] = useState(0);
-  const heroItems = bannerItems.length > 0 ? bannerItems : trending?.slice(0, 6) || [];
+  const heroItems =
+    bannerItems.length > 0 ? bannerItems : trending?.slice(0, 6) || [];
   const heroItem = heroItems[heroIndex];
   const autoRotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -61,13 +87,18 @@ export default function Home() {
   useEffect(() => {
     if (heroItems.length <= 1) return;
     startAutoRotate();
-    return () => { if (autoRotateRef.current) clearInterval(autoRotateRef.current); };
+    return () => {
+      if (autoRotateRef.current) clearInterval(autoRotateRef.current);
+    };
   }, [heroItems.length, startAutoRotate]);
 
-  const goToHero = useCallback((index: number) => {
-    setHeroIndex(index);
-    startAutoRotate();
-  }, [startAutoRotate]);
+  const goToHero = useCallback(
+    (index: number) => {
+      setHeroIndex(index);
+      startAutoRotate();
+    },
+    [startAutoRotate],
+  );
 
   // Error state
   if (trendingError || hpError) {
@@ -81,7 +112,10 @@ export default function Home() {
           </div>
           <h2 className="text-2xl font-bold mb-2">Connection Error</h2>
           <p className="text-[var(--rf-text-muted)] mb-6 text-sm">
-            {String((trendingError || hpError)?.message || 'Unable to load content. Please check your connection.')}
+            {String(
+              (trendingError || hpError)?.message ||
+                "Unable to load content. Please check your connection.",
+            )}
           </p>
           <button
             onClick={() => window.location.reload()}
@@ -116,7 +150,8 @@ export default function Home() {
       id: subject.subjectId,
       title: subject.title || heroItem.title,
       description: subject.description,
-      coverUrl: heroItem.image?.url || subject.stills?.url || subject.cover?.url,
+      coverUrl:
+        heroItem.image?.url || subject.stills?.url || subject.cover?.url,
       subjectType: subject.subjectType,
       rating: subject.imdbRatingValue,
       genre: subject.genre,
@@ -129,7 +164,10 @@ export default function Home() {
     <div className="flex-1 min-h-screen -mt-[72px]">
       {/* ============ CINEMATIC HERO BANNER ============ */}
       {hero && (
-        <section className="relative w-full h-[65vh] md:h-[85vh] overflow-hidden" aria-label="Featured content">
+        <section
+          className="relative w-full h-[65vh] md:h-[85vh] overflow-hidden"
+          aria-label="Featured content"
+        >
           {/* Background Image with Crossfade */}
           <AnimatePresence mode="sync">
             <motion.div
@@ -156,7 +194,13 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--rf-black)]/80 via-transparent to-transparent md:block hidden" />
 
           {/* Cinematic Vignette */}
-          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 50%, var(--rf-black) 100%)' }} />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, transparent 50%, var(--rf-black) 100%)",
+            }}
+          />
 
           {/* Hero Content */}
           <div className="relative z-10 flex flex-col justify-end h-full px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28 pb-14 md:pb-20 max-w-4xl">
@@ -171,7 +215,7 @@ export default function Home() {
                 {/* Meta Badges */}
                 <div className="flex items-center gap-2.5 mb-4">
                   <span className="badge glass text-[10px] py-1 px-3 backdrop-blur-xl">
-                    {hero.subjectType === 2 ? '📺 TV Series' : '🎬 Movie'}
+                    {hero.subjectType === 2 ? "📺 TV Series" : "🎬 Movie"}
                   </span>
                   {hero.rating && (
                     <span className="badge badge-rating py-1 px-3 text-[11px]">
@@ -181,7 +225,7 @@ export default function Home() {
                   )}
                   {hero.genre && (
                     <span className="hidden md:inline text-xs text-[var(--rf-text-muted)]">
-                      {hero.genre.split(',').slice(0, 3).join(' • ')}
+                      {hero.genre.split(",").slice(0, 3).join(" • ")}
                     </span>
                   )}
                 </div>
@@ -193,7 +237,8 @@ export default function Home() {
 
                 {/* Description */}
                 <p className="text-sm md:text-base text-[var(--rf-text-muted)] line-clamp-2 md:line-clamp-3 mb-6 max-w-xl leading-relaxed">
-                  {hero.description || 'Discover this incredible title. Download now to experience it in stunning quality.'}
+                  {hero.description ||
+                    "Discover this incredible title. Download now to experience it in stunning quality."}
                 </p>
 
                 {/* CTA Buttons */}
@@ -225,8 +270,8 @@ export default function Home() {
                     onClick={() => goToHero(i)}
                     className={`h-1 rounded-full transition-all duration-500 ${
                       i === heroIndex
-                        ? 'bg-[var(--rf-red)] w-8 glow-red'
-                        : 'bg-white/15 w-3 hover:bg-white/30'
+                        ? "bg-[var(--rf-red)] w-8 glow-red"
+                        : "bg-white/15 w-3 hover:bg-white/30"
                     }`}
                     aria-label={`Go to slide ${i + 1}`}
                     aria-current={i === heroIndex}
@@ -243,7 +288,11 @@ export default function Home() {
           {heroItems.length > 1 && (
             <>
               <button
-                onClick={() => goToHero((heroIndex - 1 + heroItems.length) % heroItems.length)}
+                onClick={() =>
+                  goToHero(
+                    (heroIndex - 1 + heroItems.length) % heroItems.length,
+                  )
+                }
                 className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full glass-2 items-center justify-center opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity"
                 aria-label="Previous slide"
               >
@@ -271,9 +320,30 @@ export default function Home() {
 
         {/* Trending Now */}
         {trending && trending.length > 0 && (
-          <MovieRow title="🔥 Trending Now" subtitle="Most popular this week" onViewAll={() => navigate('/trending')}>
+          <MovieRow
+            title="🔥 Trending Now"
+            subtitle="Most popular this week"
+            onViewAll={() => navigate("/trending")}
+          >
             {trending.map((movie: any, idx: number) => (
-              <div key={`${movie.subjectId}-trend-${idx}`} className="snap-start">
+              <div
+                key={`${movie.subjectId}-trend-${idx}`}
+                className="snap-start"
+              >
+                <MovieCard movie={movie} index={idx} size="md" />
+              </div>
+            ))}
+          </MovieRow>
+        )}
+
+        {/* Popular Movies Row */}
+        {popularRow && (
+          <MovieRow key={popularRow.opId || "popular"} title={popularRow.title}>
+            {popularRow.subjects.map((movie: any, idx: number) => (
+              <div
+                key={`${movie.subjectId}-${popularRow.opId}-${idx}`}
+                className="snap-start"
+              >
                 <MovieCard movie={movie} index={idx} size="md" />
               </div>
             ))}
@@ -284,29 +354,86 @@ export default function Home() {
         <SmartRecommendations allMovies={trending || []} />
 
         {/* Homepage Sections */}
-        {movieRows.map((row: any, rowIdx: number) => (
+        {otherMovieRows.map((row: any, rowIdx: number) => (
           <MovieRow key={row.opId || rowIdx} title={row.title}>
             {row.subjects.map((movie: any, idx: number) => (
-              <div key={`${movie.subjectId}-${row.opId}-${idx}`} className="snap-start">
+              <div
+                key={`${movie.subjectId}-${row.opId}-${idx}`}
+                className="snap-start"
+              >
                 <MovieCard movie={movie} index={idx} size="md" />
               </div>
             ))}
           </MovieRow>
         ))}
 
+        {/* BREATHTAKING WHATSAPP CAMPAIGN BANNER CARD */}
+        <section className="px-6 sm:px-10 lg:px-14 py-4 select-none">
+          <div className="relative rounded-3xl bg-gradient-to-r from-emerald-950/20 via-[#121218] to-emerald-950/20 border border-emerald-500/10 p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center justify-between overflow-hidden shadow-xl">
+            {/* Ambient glows inside card */}
+            <div className="absolute top-0 left-0 w-32 h-32 rounded-full bg-emerald-500/5 blur-[50px] pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-32 h-32 rounded-full bg-green-500/5 blur-[50px] pointer-events-none" />
+
+            <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
+              {/* Vibrant green WhatsApp bubble */}
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-green-400 text-white flex items-center justify-center shadow-lg shadow-emerald-950/30 shrink-0">
+                <span className="text-xl font-bold">🍿</span>
+              </div>
+              <div>
+                <span className="inline-block px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-extrabold text-[8px] uppercase tracking-wider mb-1.5">
+                  EXCLUSIVE RECOMMENDATIONS
+                </span>
+                <h3 className="text-md md:text-lg font-black tracking-wide text-white uppercase">
+                  Join the Lenzorah Picks Channel!
+                </h3>
+                <p className="text-xs text-white/50 leading-relaxed mt-0.5 max-w-xl">
+                  Get premium handpicked movie suggestions, daily trending
+                  series cards, and high-speed direct download links delivered
+                  natively on WhatsApp!
+                </p>
+              </div>
+            </div>
+
+            <a
+              href="https://whatsapp.com/channel/0029Vb8esUv3GJP6ymXaNF3g"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 active:scale-95 transition-all text-xs font-black uppercase tracking-wider text-white shadow-lg shrink-0 flex items-center gap-1.5"
+            >
+              🚀 Join Channel
+            </a>
+          </div>
+        </section>
+
         {/* Top Rated Section */}
         {trending && trending.length > 5 && (
-          <MovieRow title="⭐ Top Rated" subtitle="Highest rated content" onViewAll={() => navigate('/collections')}>
+          <MovieRow
+            title="⭐ Top Rated"
+            subtitle="Highest rated content"
+            onViewAll={() => navigate("/collections")}
+          >
             {[...trending]
-              .sort((a: any, b: any) => (b.imdbRatingValue || 0) - (a.imdbRatingValue || 0))
+              .sort(
+                (a: any, b: any) =>
+                  (b.imdbRatingValue || 0) - (a.imdbRatingValue || 0),
+              )
               .slice(0, 15)
               .map((movie: any, idx: number) => (
-                <div key={`${movie.subjectId}-top-${idx}`} className="snap-start">
+                <div
+                  key={`${movie.subjectId}-top-${idx}`}
+                  className="snap-start"
+                >
                   <MovieCard movie={movie} index={idx} size="md" />
                 </div>
               ))}
           </MovieRow>
         )}
+
+        {/* Mood Selector */}
+        <MoodSelector allMovies={trending || []} />
+
+        {/* Hidden Gems */}
+        <HiddenGems allMovies={trending || []} />
       </div>
     </div>
   );
@@ -329,7 +456,10 @@ function ContinueBrowsing() {
   }));
 
   return (
-    <MovieRow title="📺 Continue Browsing" subtitle="Pick up where you left off">
+    <MovieRow
+      title="📺 Continue Browsing"
+      subtitle="Pick up where you left off"
+    >
       {movies.map((movie: any, idx: number) => (
         <div key={`recent-${movie.subjectId}-${idx}`} className="snap-start">
           <MovieCard movie={movie} index={idx} size="md" />
@@ -368,28 +498,34 @@ function WatchlistPreview() {
 /* ============ SMART RECOMMENDATIONS (AI Pick) ============ */
 function SmartRecommendations({ allMovies }: { allMovies: any[] }) {
   const items = useRecentlyViewedStore((s) => s.items);
-  
+
   if (items.length === 0 || allMovies.length === 0) return null;
 
-  // Extremely basic "AI" recommendation logic: 
+  // Extremely basic "AI" recommendation logic:
   // Suggest high rated items from similar release years or type
   const recommended = useMemo(() => {
-    const recentTypes = new Set(items.slice(0, 5).map(i => i.subjectType));
-    const isAnimeUser = items.some(i => i.title.toLowerCase().includes('anime'));
-    
-    let pool = allMovies.filter(m => !items.some(i => i.subjectId === m.subjectId));
-    
+    const recentTypes = new Set(items.slice(0, 5).map((i) => i.subjectType));
+    const isAnimeUser = items.some((i) =>
+      i.title.toLowerCase().includes("anime"),
+    );
+
+    let pool = allMovies.filter(
+      (m) => !items.some((i) => i.subjectId === m.subjectId),
+    );
+
     // Boost items matching their type preference
     pool = pool.sort((a, b) => {
       let scoreA = a.imdbRatingValue || 0;
       let scoreB = b.imdbRatingValue || 0;
-      
+
       if (recentTypes.has(a.subjectType)) scoreA += 1;
       if (recentTypes.has(b.subjectType)) scoreB += 1;
-      
-      if (isAnimeUser && a.genre?.toLowerCase().includes('animation')) scoreA += 2;
-      if (isAnimeUser && b.genre?.toLowerCase().includes('animation')) scoreB += 2;
-      
+
+      if (isAnimeUser && a.genre?.toLowerCase().includes("animation"))
+        scoreA += 2;
+      if (isAnimeUser && b.genre?.toLowerCase().includes("animation"))
+        scoreB += 2;
+
       return scoreB - scoreA;
     });
 
@@ -399,12 +535,224 @@ function SmartRecommendations({ allMovies }: { allMovies: any[] }) {
   if (recommended.length === 0) return null;
 
   return (
-    <MovieRow title="✨ Top Picks For You" subtitle="Smart recommendations based on your history">
+    <MovieRow
+      title="✨ Top Picks For You"
+      subtitle="Smart recommendations based on your history"
+    >
       {recommended.map((movie: any, idx: number) => (
-        <div key={`rec-${movie.subjectId}-${idx}`} className="snap-start relative group">
+        <div
+          key={`rec-${movie.subjectId}-${idx}`}
+          className="snap-start relative group"
+        >
           <MovieCard movie={movie} index={idx} size="md" />
           <div className="absolute -top-2 -right-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 hidden group-hover:block animate-bounce">
             AI PICK
+          </div>
+        </div>
+      ))}
+    </MovieRow>
+  );
+}
+
+/* ============ RUN MOOD — Mood-Based Suggestions ============ */
+const MOODS = [
+  {
+    id: "action",
+    emoji: "💥",
+    label: "Action-Packed",
+    keywords: ["action", "thriller", "adventure", "war"],
+    gradient: "from-orange-500 to-red-600",
+  },
+  {
+    id: "funny",
+    emoji: "😂",
+    label: "Funny",
+    keywords: ["comedy", "sitcom", "humor"],
+    gradient: "from-yellow-400 to-orange-500",
+  },
+  {
+    id: "dark",
+    emoji: "🌑",
+    label: "Dark",
+    keywords: ["thriller", "crime", "noir", "mystery", "horror"],
+    gradient: "from-slate-600 to-slate-900",
+  },
+  {
+    id: "emotional",
+    emoji: "😢",
+    label: "Emotional",
+    keywords: ["drama", "romance", "family", "biography"],
+    gradient: "from-pink-500 to-rose-600",
+  },
+  {
+    id: "mindbend",
+    emoji: "🧠",
+    label: "Mind-Bending",
+    keywords: [
+      "sci-fi",
+      "science fiction",
+      "mystery",
+      "fantasy",
+      "psychological",
+    ],
+    gradient: "from-purple-500 to-indigo-600",
+  },
+  {
+    id: "chill",
+    emoji: "😎",
+    label: "Chill",
+    keywords: ["documentary", "animation", "family", "music"],
+    gradient: "from-teal-400 to-cyan-600",
+  },
+  {
+    id: "scary",
+    emoji: "👻",
+    label: "Horror Night",
+    keywords: ["horror", "thriller", "supernatural", "zombie"],
+    gradient: "from-gray-700 to-gray-900",
+  },
+  {
+    id: "date",
+    emoji: "❤️",
+    label: "Date Night",
+    keywords: ["romance", "comedy", "drama", "musical"],
+    gradient: "from-rose-400 to-pink-600",
+  },
+];
+
+function MoodSelector({ allMovies }: { allMovies: any[] }) {
+  const [activeMood, setActiveMood] = useState<string | null>(null);
+
+  if (allMovies.length === 0) return null;
+
+  const filteredMovies = useMemo(() => {
+    if (!activeMood) return [];
+    const mood = MOODS.find((m) => m.id === activeMood);
+    if (!mood) return [];
+
+    return allMovies
+      .filter((movie) => {
+        const genre = (movie.genre || "").toLowerCase();
+        return mood.keywords.some((kw) => genre.includes(kw));
+      })
+      .slice(0, 15);
+  }, [activeMood, allMovies]);
+
+  return (
+    <div className="py-4">
+      {/* Section Header */}
+      <div className="px-6 sm:px-10 lg:px-14 mb-4">
+        <div className="flex items-center gap-3 mb-1">
+          <span className="text-lg">🎭</span>
+          <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
+            RUN Mood
+          </h2>
+        </div>
+        <p className="text-xs text-[var(--rf-text-dim)] ml-8">
+          How are you feeling? Pick a mood for instant suggestions
+        </p>
+      </div>
+
+      {/* Mood Pills */}
+      <div className="px-6 sm:px-10 lg:px-14 mb-4">
+        <div className="flex flex-wrap gap-2">
+          {MOODS.map((mood) => (
+            <button
+              key={mood.id}
+              onClick={() =>
+                setActiveMood(activeMood === mood.id ? null : mood.id)
+              }
+              className={`
+                px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 flex items-center gap-2
+                ${
+                  activeMood === mood.id
+                    ? `bg-gradient-to-r ${mood.gradient} text-white shadow-lg scale-105`
+                    : "glass-2 text-[var(--rf-text-muted)] hover:text-white hover:scale-[1.02]"
+                }
+              `}
+            >
+              <span className="text-sm">{mood.emoji}</span>
+              {mood.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Filtered Results */}
+      <AnimatePresence mode="wait">
+        {activeMood && filteredMovies.length > 0 && (
+          <motion.div
+            key={activeMood}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+          >
+            <MovieRow
+              title={`${MOODS.find((m) => m.id === activeMood)?.emoji} ${MOODS.find((m) => m.id === activeMood)?.label} Vibes`}
+            >
+              {filteredMovies.map((movie: any, idx: number) => (
+                <div
+                  key={`mood-${movie.subjectId}-${idx}`}
+                  className="snap-start"
+                >
+                  <MovieCard movie={movie} index={idx} size="md" />
+                </div>
+              ))}
+            </MovieRow>
+          </motion.div>
+        )}
+        {activeMood && filteredMovies.length === 0 && (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="px-6 sm:px-10 lg:px-14 py-6"
+          >
+            <div className="glass-2 rounded-2xl p-6 text-center max-w-md mx-auto">
+              <p className="text-sm text-[var(--rf-text-muted)]">
+                No matches for this mood right now. Try a different vibe!
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ============ HIDDEN GEMS — High-Rated Low-Popularity ============ */
+function HiddenGems({ allMovies }: { allMovies: any[] }) {
+  const gems = useMemo(() => {
+    if (allMovies.length < 10) return [];
+
+    // Sort by rating desc, then pick from the bottom half of popularity (last half of array index)
+    const sorted = [...allMovies]
+      .filter((m) => (m.imdbRatingValue || 0) >= 6.5)
+      .sort((a, b) => (b.imdbRatingValue || 0) - (a.imdbRatingValue || 0));
+
+    // Take items from the second half (less popular but highly rated)
+    const halfPoint = Math.floor(sorted.length / 2);
+    return sorted.slice(halfPoint).slice(0, 15);
+  }, [allMovies]);
+
+  if (gems.length === 0) return null;
+
+  return (
+    <MovieRow
+      title="💎 Hidden Gems"
+      subtitle="Underrated titles worth discovering"
+    >
+      {gems.map((movie: any, idx: number) => (
+        <div
+          key={`gem-${movie.subjectId}-${idx}`}
+          className="snap-start relative"
+        >
+          <MovieCard movie={movie} index={idx} size="md" />
+          <div className="absolute top-2 left-2 bg-gradient-to-r from-emerald-500/80 to-teal-500/80 backdrop-blur-sm text-white text-[8px] font-black px-2 py-0.5 rounded-full z-10 flex items-center gap-1">
+            <Star size={8} className="fill-white" />
+            GEM
           </div>
         </div>
       ))}

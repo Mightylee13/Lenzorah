@@ -1,0 +1,24 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Handle error pages
+  ErrorDocument 403 /403.html
+  ErrorDocument 404 /404.html
+  ErrorDocument 500 /500.html
+  ErrorDocument 503 /503.html
+
+  # Route all /api/v2/ calls to the local PHP proxy to bypass Origin blocking
+  RewriteRule ^api/v2/(.*)$ api_proxy.php [L,QSA]
+
+  # Route contact form submissions to the SMTP mailer
+  RewriteRule ^api/contact$ contact_mailer.php [L]
+
+  # If the requested file or directory exists, serve it directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Otherwise, route everything else to meta.php for React Router to handle (including dynamic SEO injection)
+  RewriteRule . /meta.php [L]
+</IfModule>

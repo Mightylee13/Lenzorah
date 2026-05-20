@@ -1,6 +1,10 @@
 import https from 'https';
 
-const req = https.request('https://movieapi.giftedtech.co.ke/api/v2/trending', {
+const base = process.env.MOVIE_API_BASE || 'https://movieapi.gifted.co.ke';
+
+const req = https.request(
+  `${base}/api/v2/trending`,
+  {
   method: 'OPTIONS',
   headers: {
     'Origin': 'https://example.com',

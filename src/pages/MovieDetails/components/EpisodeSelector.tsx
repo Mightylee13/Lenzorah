@@ -34,12 +34,12 @@ export const EpisodeSelector = memo(({
     <div className={cn('flex gap-2.5 mb-4', downloadMode === 'batch' && 'mb-3')}>
       {/* Season Select */}
       <div className={downloadMode === 'batch' ? 'w-full' : 'flex-1'}>
-        <label className="block text-[10px] font-bold text-[var(--rf-text-dim)] mb-1.5 uppercase tracking-wider">
+        <label className="block text-[9px] sm:text-[10px] font-bold text-[var(--rf-text-dim)] mb-1.5 uppercase tracking-wider">
           Season
         </label>
         <div className="relative">
           <select
-            className="w-full bg-[var(--rf-surface)] border border-[var(--rf-border)] rounded-xl p-3 pr-10 text-white text-sm font-medium appearance-none focus:border-[var(--rf-red)]/50 outline-none transition-colors cursor-pointer"
+            className="w-full bg-[var(--rf-surface)] border border-[var(--rf-border)] rounded-xl p-2 sm:p-3 pr-8 sm:pr-10 text-white text-xs sm:text-sm font-medium appearance-none focus:border-[var(--rf-red)]/50 outline-none transition-colors cursor-pointer"
             value={selectedSeason}
             onChange={(e) => onSeasonChange(Number(e.target.value))}
             aria-label="Select Season"
@@ -52,19 +52,19 @@ export const EpisodeSelector = memo(({
                 </option>
               ))}
           </select>
-          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--rf-text-dim)] pointer-events-none" />
+          <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--rf-text-dim)] pointer-events-none" />
         </div>
       </div>
 
       {/* Episode Select */}
       {downloadMode === 'single' && (
         <div className="flex-1">
-          <label className="block text-[10px] font-bold text-[var(--rf-text-dim)] mb-1.5 uppercase tracking-wider">
+          <label className="block text-[9px] sm:text-[10px] font-bold text-[var(--rf-text-dim)] mb-1.5 uppercase tracking-wider">
             Episode
           </label>
           <div className="relative">
             <select
-              className="w-full bg-[var(--rf-surface)] border border-[var(--rf-border)] rounded-xl p-3 pr-10 text-white text-sm font-medium appearance-none focus:border-[var(--rf-red)]/50 outline-none transition-colors cursor-pointer"
+              className="w-full bg-[var(--rf-surface)] border border-[var(--rf-border)] rounded-xl p-2 sm:p-3 pr-8 sm:pr-10 text-white text-xs sm:text-sm font-medium appearance-none focus:border-[var(--rf-red)]/50 outline-none transition-colors cursor-pointer"
               value={selectedEpisode}
               onChange={(e) => onEpisodeChange(Number(e.target.value))}
               aria-label="Select Episode"
@@ -78,7 +78,7 @@ export const EpisodeSelector = memo(({
                 );
               })}
             </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--rf-text-dim)] pointer-events-none" />
+            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--rf-text-dim)] pointer-events-none" />
           </div>
         </div>
       )}

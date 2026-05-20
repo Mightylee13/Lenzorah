@@ -4,6 +4,7 @@ import { useMovieInfo, useMovieSources } from './hooks/useMovieQueries';
 import { useBatchDownloads } from './hooks/useBatchDownloads';
 import { MovieHero } from './components/MovieHero';
 import { CastCarousel } from './components/CastCarousel';
+import AITrivia from '../../components/AITrivia';
 import { SimilarMovies } from './components/SimilarMovies';
 import { DownloadModal } from './components/DownloadModal';
 import { DetailSkeleton } from '../../components/ui/Skeleton';
@@ -249,6 +250,8 @@ export default function MovieDetails() {
           />
 
           <CastCarousel stars={stars} />
+          
+          <AITrivia title={subject.title} />
 
           {/* Premium Episodes Section for Series */}
           {isTvSeries && seasons.length > 0 && (
@@ -263,13 +266,13 @@ export default function MovieDetails() {
               </h3>
 
               {/* Seasons Dropdown Selector */}
-              <div className="mb-6 max-w-xs">
-                <label className="block text-[10px] font-bold text-[var(--rf-text-dim)] mb-1.5 uppercase tracking-wider">
+              <div className="mb-6 max-w-[180px] sm:max-w-xs">
+                <label className="block text-[9px] sm:text-[10px] font-bold text-[var(--rf-text-dim)] mb-1.5 uppercase tracking-wider">
                   Select Season
                 </label>
                 <div className="relative">
                   <select
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 pr-10 text-white text-xs font-bold appearance-none focus:border-[var(--rf-red)]/50 outline-none transition-all cursor-pointer hover:bg-white/[0.08]"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-2 sm:p-3 pr-8 sm:pr-10 text-white text-[11px] sm:text-xs font-bold appearance-none focus:border-[var(--rf-red)]/50 outline-none transition-all cursor-pointer hover:bg-white/[0.08]"
                     value={selectedSeason}
                     onChange={(e) => {
                       setSelectedSeason(Number(e.target.value));
@@ -285,7 +288,7 @@ export default function MovieDetails() {
                         </option>
                       ))}
                   </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--rf-text-dim)] pointer-events-none" />
+                  <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--rf-text-dim)] pointer-events-none" />
                 </div>
               </div>
 

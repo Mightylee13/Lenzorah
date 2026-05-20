@@ -1,0 +1,3 @@
+@echo off
+echo Installing dependencies via npm...
+npm install --no-audit --no-fund

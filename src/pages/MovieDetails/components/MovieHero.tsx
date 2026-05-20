@@ -1,4 +1,5 @@
-import { Star, Download, ChevronLeft, Clock, Globe, BarChart3, Calendar, Tv, Heart, Share2, Play } from 'lucide-react';
+import { useState } from 'react';
+import { Star, Download, ChevronLeft, Clock, Globe, BarChart3, Calendar, Tv, Heart, Share2, Play, QrCode } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { SubjectInfo, MovieMetadata, Season } from '../types';
@@ -6,6 +7,7 @@ import { OptimizedImage } from '../../../components/ui/OptimizedImage';
 import { formatDuration, formatRating, formatCount, formatYear } from '../../../utils/format';
 import { useWatchlistStore } from '../../../stores/useWatchlistStore';
 import toast from 'react-hot-toast';
+import UnifiedShareModal from '../../../components/UnifiedShareModal';
 
 interface MovieHeroProps {
   subject: SubjectInfo;
@@ -32,6 +34,28 @@ export const MovieHero = ({
   const genres = subject.genre?.split(',').map((g: string) => g.trim()).filter(Boolean) || [];
   const year = formatYear(subject.releaseDate);
   const duration = formatDuration(subject.duration);
+
+  const addItem = useWatchlistStore((s) => s.addItem);
+  const removeItem = useWatchlistStore((s) => s.removeItem);
+  const isInWatchlist = useWatchlistStore((s) => s.isInWatchlist(subject.subjectId || ''));
+
+  const toggleWatchlist = () => {
+    const id = subject.subjectId || '';
+    if (isInWatchlist) {
+      removeItem(id);
+      toast('Removed from Watchlist', { icon: '💔' });
+    } else {
+      addItem({
+        subjectId: id,
+        title: subject.title,
+        coverUrl: coverUrl,
+        subjectType: subject.subjectType,
+        imdbRatingValue: subject.imdbRatingValue,
+        releaseDate: subject.releaseDate,
+      });
+      toast.success('Added to Watchlist');
+    }
+  };
 
   return (
     <>
@@ -63,6 +87,19 @@ export const MovieHero = ({
               className="w-full h-full"
               priority
             />
+
+            {/* Watchlist Floating Overlay */}
+            <button
+              onClick={toggleWatchlist}
+              className={`absolute top-4 right-4 z-10 w-9 h-9 rounded-xl glass-3 flex items-center justify-center transition-all duration-300 ${
+                isInWatchlist 
+                  ? 'text-[var(--rf-red)] bg-black/60 border border-[var(--rf-red)]/40 shadow-lg shadow-[var(--rf-red)]/20 scale-105' 
+                  : 'text-white hover:scale-105 bg-black/40 border border-white/10 hover:bg-black/60'
+              }`}
+              title={isInWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'}
+            >
+              <Heart size={15} fill={isInWatchlist ? 'currentColor' : 'none'} />
+            </button>
 
             {/* Poster Glow */}
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-[var(--rf-red)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 blur-xl" />
@@ -169,10 +206,8 @@ export const MovieHero = ({
             </div>
           )}
 
-          {/* Description */}
-          <p className="text-sm md:text-base text-[var(--rf-text-muted)] leading-relaxed mb-8 max-w-2xl">
-            {subject.description || metadata?.description || 'No description available for this title.'}
-          </p>
+          {/* Description — Expandable */}
+          <ExpandableDescription text={subject.description || metadata?.description || 'No description available for this title.'} />
 
           {/* ============ CTA BUTTONS ============ */}
           <CTAButtons
@@ -198,88 +233,74 @@ function CTAButtons({ subject, coverUrl, isTvSeries, onOpenDownload, onOpenPlay,
   onOpenPlay: () => void;
   playLabel: string;
 }) {
-  const addItem = useWatchlistStore((s) => s.addItem);
-  const removeItem = useWatchlistStore((s) => s.removeItem);
-  const isInWatchlist = useWatchlistStore((s) => s.isInWatchlist(subject.subjectId || ''));
-
-  const toggleWatchlist = () => {
-    const id = subject.subjectId || '';
-    if (isInWatchlist) {
-      removeItem(id);
-      toast('Removed from Watchlist', { icon: '💔' });
-    } else {
-      addItem({
-        subjectId: id,
-        title: subject.title,
-        coverUrl: coverUrl,
-        subjectType: subject.subjectType,
-        imdbRatingValue: subject.imdbRatingValue,
-        releaseDate: subject.releaseDate,
-      });
-      toast.success('Added to Watchlist');
-    }
-  };
-
-  const handleShare = async () => {
-    const url = window.location.href;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: subject.title, url });
-      } catch { /* user cancelled */ }
-    } else {
-      await navigator.clipboard.writeText(url);
-      toast.success('Link copied!');
-    }
-  };
+  const [shareOpen, setShareOpen] = useState(false);
 
   return (
     <div className="flex flex-wrap items-center gap-3">
+      {/* Play & Download side-by-side with reduced font size */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onOpenPlay}
+          aria-label="Stream Movie Now"
+          className="btn-primary text-xs px-5 py-3 md:text-sm md:px-7 md:py-3.5 bg-gradient-to-r from-red-600 to-rose-600 border-none shadow-[0_0_20px_rgba(225,29,72,0.2)] hover:shadow-[0_0_30px_rgba(225,29,72,0.4)] transition-all font-semibold flex items-center gap-1.5"
+        >
+          <Play size={15} className="fill-current" />
+          <span>{playLabel}</span>
+        </button>
+
+        <button
+          onClick={onOpenDownload}
+          aria-label="Open Download Options"
+          className="btn-glass text-xs px-5 py-3 md:text-sm md:px-6 md:py-3.5 hover:bg-white/10 font-semibold flex items-center gap-1.5"
+        >
+          <Download size={15} />
+          <span>Download</span>
+        </button>
+      </div>
+
+      {/* Share button (icon only) */}
       <button
-        onClick={onOpenPlay}
-        aria-label="Stream Movie Now"
-        className="btn-primary text-sm px-8 py-4 bg-gradient-to-r from-red-600 to-rose-600 border-none shadow-[0_0_30px_rgba(225,29,72,0.3)] hover:shadow-[0_0_40px_rgba(225,29,72,0.5)] transition-all"
+        onClick={() => setShareOpen(true)}
+        aria-label="Share Options"
+        className="w-10 h-10 md:w-12 md:h-12 rounded-xl glass-2 flex items-center justify-center hover:bg-white/[0.08] transition-all duration-200 shrink-0 border border-white/[0.05]"
+        title="Share Content"
       >
-        <Play size={18} className="fill-current" />
-        <span>{playLabel}</span>
+        <Share2 size={16} />
       </button>
 
-      <button
-        onClick={onOpenDownload}
-        aria-label="Open Download Options"
-        className="btn-glass text-sm px-6 py-4 hover:bg-white/10"
-      >
-        <Download size={18} />
-        <span>Download</span>
-      </button>
+      <UnifiedShareModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        title={subject.title}
+        coverUrl={coverUrl}
+        rating={subject.imdbRatingValue}
+        year={subject.releaseDate?.substring(0, 4)}
+        genre={subject.genre}
+        description={subject.description}
+        url={window.location.href}
+      />
+    </div>
+  );
+}
 
-      <a
-        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(subject.title + ' trailer')}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="btn-glass text-sm px-5 py-4 hover:bg-white/10"
-      >
-        <Play size={18} className="fill-current" />
-        <span>Trailer</span>
-      </a>
+/* ============ EXPANDABLE DESCRIPTION ============ */
+function ExpandableDescription({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = text.length > 200;
 
-      <button
-        onClick={toggleWatchlist}
-        aria-label={isInWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'}
-        className={`btn-glass text-sm px-5 py-4 ${
-          isInWatchlist ? 'text-[var(--rf-red)] border-[var(--rf-red)]/30' : ''
-        }`}
-      >
-        <Heart size={18} fill={isInWatchlist ? 'currentColor' : 'none'} />
-        <span>{isInWatchlist ? 'Saved' : 'Watchlist'}</span>
-      </button>
-
-      <button
-        onClick={handleShare}
-        aria-label="Share"
-        className="w-12 h-12 rounded-xl glass-2 flex items-center justify-center hover:bg-white/[0.08] transition-colors"
-      >
-        <Share2 size={18} />
-      </button>
+  return (
+    <div className="mb-8 max-w-2xl">
+      <p className={`text-sm md:text-base text-[var(--rf-text-muted)] leading-relaxed transition-all duration-300 ${!expanded && isLong ? 'line-clamp-3' : ''}`}>
+        {text}
+      </p>
+      {isLong && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="mt-2 text-xs font-bold text-[var(--rf-red)] hover:text-[var(--rf-red)]/80 transition-colors flex items-center gap-1"
+        >
+          {expanded ? 'Show Less ↑' : 'Read More ↓'}
+        </button>
+      )}
     </div>
   );
 }

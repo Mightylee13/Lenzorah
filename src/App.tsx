@@ -25,6 +25,14 @@ import Actor from './pages/Actor';
 import Collections from './pages/Collections';
 import Sports from './pages/Sports';
 import HistoryPage from './pages/History';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import Contact from './pages/Contact';
+import DMCA from './pages/DMCA';
+import RunMode from './pages/RunMode';
+import Daratech from './pages/Daratech';
+import Maintenance from './pages/Maintenance';
+import { useMaintenanceStore } from './stores/useMaintenanceStore';
 
 /* Page loading fallback */
 const PageLoader = () => (
@@ -77,6 +85,24 @@ function ScrollToTop() {
 function AppContent() {
   const location = useLocation();
   const isWatchPage = location.pathname.startsWith('/watch');
+  const isAdminPage = location.pathname === '/daratech';
+
+  const { isMaintenanceMode, isBypassed } = useMaintenanceStore();
+
+  // Synchronize maintenance state across tabs reactively
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'rf-maintenance') {
+        useMaintenanceStore.persist.rehydrate();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  if (isMaintenanceMode && !isBypassed && !isAdminPage) {
+    return <Maintenance />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col text-white antialiased relative overflow-x-hidden bg-[#030305]">
@@ -107,9 +133,15 @@ function AppContent() {
         }}
       />
 
-      <Navbar />
+      {!isAdminPage && <Navbar />}
 
-      <main className={`flex-1 w-full relative z-10 ${isWatchPage ? 'pt-2 pb-6' : 'pt-[56px] md:pt-[72px] pb-[80px] md:pb-0'}`}>
+      <main className={`flex-1 w-full relative z-10 ${
+        isAdminPage 
+          ? 'pt-0 pb-0' 
+          : isWatchPage 
+            ? 'pt-2 pb-6' 
+            : 'pt-[calc(56px+var(--safe-top))] md:pt-[calc(72px+var(--safe-top))] pb-[calc(80px+var(--safe-bottom))] md:pb-0'
+      }`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/explore" element={<Explore />} />
@@ -126,10 +158,16 @@ function AppContent() {
           <Route path="/trending" element={<Trending />} />
           <Route path="/actor/:name" element={<Actor />} />
           <Route path="/collections" element={<Collections />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/dmca" element={<DMCA />} />
+          <Route path="/run-mode" element={<RunMode />} />
+          <Route path="/daratech" element={<Daratech />} />
         </Routes>
       </main>
 
-      {!isWatchPage && (
+      {!isWatchPage && !isAdminPage && (
         <div className="hidden md:block">
           <Footer />
         </div>

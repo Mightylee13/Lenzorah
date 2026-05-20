@@ -1,12 +1,15 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Outfit", "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans:
+    "Outfit", "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+    "Noto Color Emoji";
 }
 
 /* ============================================
-   RUNFLIX PREMIUM DESIGN SYSTEM
-   ============================================ */
+  LENZORAH PREMIUM DESIGN SYSTEM
+  ============================================ */
 
 :root {
   /* Core Palette */
@@ -18,9 +21,9 @@
   --rf-border-hover: rgba(255, 255, 255, 0.12);
 
   /* Brand */
-  --rf-red: #ff1e27;
-  --rf-red-glow: rgba(255, 30, 39, 0.35);
-  --rf-red-deep: #bf0b12;
+  --rf-red: #4490ff;
+  --rf-red-glow: rgba(68, 144, 255, 0.28);
+  --rf-red-deep: #0c57d2;
   --rf-gold: #fbc531;
   --rf-gold-glow: rgba(251, 197, 49, 0.18);
 
@@ -65,7 +68,7 @@
   --rf-anime-gradient: linear-gradient(135deg, #ec4899, #d946ef, #9333ea);
 
   /* ── Discord Brand ── */
-  --rf-discord: #5865F2;
+  --rf-discord: #5865f2;
   --rf-discord-glow: rgba(88, 101, 242, 0.3);
   --rf-discord-hover: #4752c4;
 }
@@ -88,7 +91,8 @@ html {
 body {
   background: var(--rf-black);
   color: var(--rf-text);
-  font-family: "Outfit", "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-family:
+    "Outfit", "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -100,7 +104,8 @@ body {
    ============================================ */
 
 @keyframes float-slow {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) scale(1);
   }
   33% {
@@ -112,7 +117,8 @@ body {
 }
 
 @keyframes float-mid {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) scale(1);
   }
   50% {
@@ -218,8 +224,12 @@ body {
 }
 
 @keyframes skeleton-shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 /* ============================================
@@ -257,14 +267,16 @@ body {
 }
 
 .glow-red {
-  box-shadow: 0 0 30px rgba(229, 9, 20, 0.25),
-              0 0 60px rgba(229, 9, 20, 0.1),
-              inset 0 0 20px rgba(229, 9, 20, 0.05);
+  box-shadow:
+    0 0 30px rgba(68, 144, 255, 0.35),
+    0 0 60px rgba(68, 144, 255, 0.2),
+    inset 0 0 20px rgba(68, 144, 255, 0.1);
 }
 
 .glow-gold {
-  box-shadow: 0 0 20px rgba(245, 197, 24, 0.2),
-              0 0 40px rgba(245, 197, 24, 0.05);
+  box-shadow:
+    0 0 20px rgba(245, 197, 24, 0.2),
+    0 0 40px rgba(245, 197, 24, 0.05);
 }
 
 /* ============================================
@@ -283,10 +295,11 @@ body {
 }
 
 .movie-card:hover {
-  border-color: rgba(229, 9, 20, 0.3);
+  border-color: rgba(68, 144, 255, 0.3);
   transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5),
-              0 0 30px rgba(229, 9, 20, 0.08);
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(68, 144, 255, 0.1);
 }
 
 .movie-card::before {
@@ -295,7 +308,7 @@ body {
   inset: 0;
   background: radial-gradient(
     ellipse at center bottom,
-    rgba(229, 9, 20, 0.08) 0%,
+    rgba(68, 144, 255, 0.08) 0%,
     transparent 70%
   );
   opacity: 0;
@@ -332,9 +345,9 @@ body {
 }
 
 .badge-quality {
-  background: rgba(229, 9, 20, 0.15);
-  color: #ff4757;
-  border: 1px solid rgba(229, 9, 20, 0.2);
+  background: rgba(68, 144, 255, 0.12);
+  color: #b3d4ff;
+  border: 1px solid rgba(68, 144, 255, 0.18);
 }
 
 .badge-type {
@@ -359,7 +372,11 @@ body {
   justify-content: center;
   gap: 10px;
   padding: 14px 28px;
-  background: linear-gradient(135deg, var(--rf-red) 0%, var(--rf-red-deep) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--rf-red) 0%,
+    var(--rf-red-deep) 100%
+  );
   color: white;
   font-weight: 700;
   border-radius: var(--rf-radius-xl);
@@ -374,15 +391,20 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    transparent 50%
+  );
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(229, 9, 20, 0.4),
-              0 0 60px rgba(229, 9, 20, 0.1);
+  box-shadow:
+    0 8px 24px rgba(68, 144, 255, 0.35),
+    0 0 60px rgba(68, 144, 255, 0.18);
 }
 
 .btn-primary:hover::before {
@@ -494,7 +516,9 @@ body {
    ============================================ */
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -625,11 +649,15 @@ body {
 
 /* Pulsing glow for the Discord live indicator */
 @keyframes discord-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4); }
-  50% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(74, 222, 128, 0);
+  }
 }
 
 .discord-live {
   animation: discord-pulse 2s ease-in-out infinite;
 }
-

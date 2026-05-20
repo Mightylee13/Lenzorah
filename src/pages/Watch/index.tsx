@@ -1,24 +1,35 @@
-import { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useMovieInfo, useMovieSources } from '../MovieDetails/hooks/useMovieQueries';
-import CinematicPlayer from '../../components/player/CinematicPlayer';
-import { DetailSkeleton } from '../../components/ui/Skeleton';
-import { extractIdFromSlug } from '../../utils/slug';
-import { useProgressStore } from '../../stores/useProgressStore';
-import { useSEO } from '../../hooks/useSEO';
-import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, List, AlertCircle, Play, Check, X, Sparkles } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import { useEffect, useState, useMemo } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  useMovieInfo,
+  useMovieSources,
+} from "../MovieDetails/hooks/useMovieQueries";
+import CinematicPlayer from "../../components/player/CinematicPlayer";
+import { DetailSkeleton } from "../../components/ui/Skeleton";
+import { extractIdFromSlug } from "../../utils/slug";
+import { useProgressStore } from "../../stores/useProgressStore";
+import { useSEO } from "../../hooks/useSEO";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  ChevronLeft,
+  List,
+  AlertCircle,
+  Play,
+  Check,
+  X,
+  Sparkles,
+} from "lucide-react";
+import { cn } from "../../utils/cn";
 
 export default function Watch() {
   const { slug } = useParams<{ slug: string }>();
-  const id = extractIdFromSlug(slug || '');
+  const id = extractIdFromSlug(slug || "");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Search parameters for Series
-  const seasonParam = searchParams.get('s');
-  const episodeParam = searchParams.get('e');
+  const seasonParam = searchParams.get("s");
+  const episodeParam = searchParams.get("e");
 
   const selectedSeason = seasonParam ? parseInt(seasonParam, 10) : 1;
   const selectedEpisode = episodeParam ? parseInt(episodeParam, 10) : 1;
@@ -32,16 +43,25 @@ export default function Watch() {
   }, [selectedSeason]);
 
   // Queries
-  const { data: info, isLoading: infoLoading, error: infoError } = useMovieInfo(id);
+  const {
+    data: info,
+    isLoading: infoLoading,
+    error: infoError,
+  } = useMovieInfo(id);
   const isTvSeries = info?.subject?.subjectType === 2;
   const seasons = info?.resource?.seasons || [];
 
-  const { data: sourcesData, isLoading: sourcesLoading, isError: sourcesHasError, error: sourcesError } = useMovieSources(
+  const {
+    data: sourcesData,
+    isLoading: sourcesLoading,
+    isError: sourcesHasError,
+    error: sourcesError,
+  } = useMovieSources(
     id,
     true, // always enabled on the watch page
     isTvSeries,
     selectedSeason,
-    selectedEpisode
+    selectedEpisode,
   );
 
   const sources = sourcesData?.sources || [];
@@ -55,45 +75,46 @@ export default function Watch() {
   const seoSchema = useMemo(() => {
     if (!info?.subject) return undefined;
     const title = info.subject.title;
-    const desc = info.subject.description || 'Instant premium cinema playback.';
-    const img = info.subject.cover?.url || info.metadata?.image || '';
+    const desc = info.subject.description || "Instant premium cinema playback.";
+    const img = info.subject.cover?.url || info.metadata?.image || "";
 
     if (isTvSeries) {
       return {
         "@context": "https://schema.org",
         "@type": "TVEpisode",
-        "name": `${title} Season ${selectedSeason} Episode ${selectedEpisode}`,
-        "episodeNumber": selectedEpisode,
-        "partOfSeason": {
+        name: `${title} Season ${selectedSeason} Episode ${selectedEpisode}`,
+        episodeNumber: selectedEpisode,
+        partOfSeason: {
           "@type": "TVSeason",
-          "seasonNumber": selectedSeason
+          seasonNumber: selectedSeason,
         },
-        "partOfSeries": {
+        partOfSeries: {
           "@type": "TVSeries",
-          "name": title
+          name: title,
         },
-        "description": desc,
-        "image": img
+        description: desc,
+        image: img,
       };
     }
 
     return {
       "@context": "https://schema.org",
       "@type": "Movie",
-      "name": title,
-      "description": desc,
-      "image": img
+      name: title,
+      description: desc,
+      image: img,
     };
   }, [info?.subject, isTvSeries, selectedSeason, selectedEpisode]);
 
   // Auto SEO
   useSEO({
     title: info?.subject?.title
-      ? `Streaming: ${info.subject.title}${isTvSeries ? ` S${selectedSeason}E${selectedEpisode}` : ''}`
-      : 'Watch Stream',
-    description: info?.subject?.description || 'Instant premium cinema playback.',
+      ? `Streaming: ${info.subject.title}${isTvSeries ? ` S${selectedSeason}E${selectedEpisode}` : ""}`
+      : "Watch Stream",
+    description:
+      info?.subject?.description || "Instant premium cinema playback.",
     image: info?.subject?.cover?.url || info?.metadata?.image,
-    type: 'video.other',
+    type: "video.other",
     schema: seoSchema,
   });
 
@@ -119,9 +140,12 @@ export default function Watch() {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center text-center p-6">
         <AlertCircle className="text-[var(--rf-red)] mb-4" size={48} />
-        <h2 className="text-xl font-bold text-white mb-2">Failed to load stream info</h2>
+        <h2 className="text-xl font-bold text-white mb-2">
+          Failed to load stream info
+        </h2>
         <p className="text-sm text-[var(--rf-text-muted)] max-w-sm mb-6">
-          We couldn't connect to our source APIs. Please try going back or refreshing.
+          We couldn't connect to our source APIs. Please try going back or
+          refreshing.
         </p>
         <button onClick={() => navigate(-1)} className="btn-primary px-6 py-3">
           Go Back
@@ -135,58 +159,65 @@ export default function Watch() {
   const backdropUrl = subject.stills?.url || coverUrl;
 
   return (
-    <div className="min-h-screen bg-[var(--rf-black)] pt-4 pb-12">
-      <div className="max-w-[1600px] mx-auto px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28">
-        
-        {/* Navigation Header */}
-        <div className="flex justify-between items-center mb-6">
+    <div className="w-full h-screen lg:h-auto lg:min-h-screen bg-black lg:bg-[var(--rf-black)] overflow-hidden lg:overflow-visible relative flex flex-col lg:py-8">
+      <div className="w-full h-full lg:h-auto lg:max-w-[1600px] lg:mx-auto lg:px-6 sm:lg:px-10 md:lg:px-16 lg:lg:px-20 xl:lg:px-28 flex flex-col">
+        {/* Navigation Header - hidden on mobile watch screen (overlaid instead), visible on desktop */}
+        <div className="hidden lg:flex justify-between items-center mb-6">
           <button
             onClick={() => navigate(`/movie/${slug}`)}
             className="flex items-center gap-2 text-sm text-[var(--rf-text-muted)] hover:text-white transition-colors group"
           >
-            <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+            <ChevronLeft
+              size={20}
+              className="group-hover:-translate-x-1 transition-transform"
+            />
             <span>Back to Info</span>
           </button>
-          
+
           {isTvSeries && (
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className={cn(
                 "btn-glass px-4 py-2 text-xs flex items-center gap-2 transition-all",
-                sidebarOpen && "bg-white/10 text-white"
+                sidebarOpen && "bg-white/10 text-white",
               )}
             >
               <List size={14} />
-              <span>{sidebarOpen ? 'Hide Sidebar' : 'Show Episodes'}</span>
+              <span>{sidebarOpen ? "Hide Sidebar" : "Show Episodes"}</span>
             </button>
           )}
         </div>
 
         {/* Streaming Work Area */}
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
-          
+        <div className="flex flex-col lg:flex-row gap-6 items-start flex-1 h-full lg:h-auto relative z-10">
           {/* Main player column */}
-          <div className="flex-1 w-full flex flex-col">
+          <div className="flex-1 w-full h-full lg:h-auto flex flex-col">
             {sourcesLoading ? (
-              <div className="w-full h-[55vh] md:h-[65vh] bg-white/[0.02] border border-white/[0.08] rounded-3xl flex flex-col items-center justify-center">
+              <div className="w-full h-full lg:h-[65vh] bg-black lg:bg-white/[0.02] lg:border lg:border-white/[0.08] lg:rounded-3xl flex flex-col items-center justify-center">
                 <motion.div
                   animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
                   className="w-10 h-10 border-4 border-[var(--rf-red)] border-t-transparent rounded-full mb-4"
                 />
-                <p className="text-xs text-[var(--rf-text-muted)]">Negotiating high-speed streaming links...</p>
+                <p className="text-xs text-[var(--rf-text-muted)]">
+                  Negotiating high-speed streaming links...
+                </p>
               </div>
             ) : sources.length > 0 ? (
-              <div className="w-full rounded-3xl overflow-hidden shadow-2xl border border-white/[0.05]">
+              <div className="w-full h-full lg:h-auto lg:rounded-3xl lg:overflow-hidden lg:shadow-2xl lg:border lg:border-white/[0.05]">
                 <CinematicPlayer
                   sources={sources}
                   subtitles={subtitles}
-                  title={`${subject.title}${isTvSeries ? ` - S${selectedSeason}E${selectedEpisode}` : ''}`}
+                  title={`${subject.title}${isTvSeries ? ` - S${selectedSeason}E${selectedEpisode}` : ""}`}
                   backdropUrl={backdropUrl}
                   stars={info?.stars || []}
                   hasNextEpisode={isTvSeries && selectedEpisode < maxEp}
                   onNextEpisode={() => {
-                    markEpisodeComplete(subject.subjectId || '', selectedSeason, selectedEpisode);
+                    markEpisodeComplete(
+                      subject.subjectId || "",
+                      selectedSeason,
+                      selectedEpisode,
+                    );
                     handleEpisodeSelect(selectedSeason, selectedEpisode + 1);
                   }}
                   hasPrevEpisode={isTvSeries && selectedEpisode > 1}
@@ -196,14 +227,29 @@ export default function Watch() {
                   subjectId={subject.subjectId}
                   season={selectedSeason}
                   episode={selectedEpisode}
+                  className="h-[100dvh] lg:h-[75vh] rounded-none lg:rounded-3xl border-none lg:border lg:border-white/[0.08]"
+                  onBack={() => navigate(`/movie/${slug}`)}
+                  onShowEpisodes={
+                    isTvSeries ? () => setSidebarOpen(!sidebarOpen) : undefined
+                  }
+                  seasons={seasons}
+                  onEpisodeSelect={handleEpisodeSelect}
                 />
               </div>
             ) : sourcesHasError ? (
-              <div className="w-full h-[55vh] md:h-[65vh] bg-white/[0.02] border border-white/[0.08] rounded-3xl flex flex-col items-center justify-center p-6 text-center">
+              <div className="w-full h-full lg:h-[65vh] bg-black lg:bg-white/[0.02] lg:border lg:border-white/[0.08] lg:rounded-3xl flex flex-col items-center justify-center p-6 text-center">
                 <AlertCircle className="text-[var(--rf-red)] mb-4" size={40} />
-                <h4 className="text-base font-bold text-white mb-2">API Connection Failure (500/403)</h4>
+                <h4 className="text-base font-bold text-white mb-2">
+                  API Connection Failure (500/403)
+                </h4>
                 <p className="text-xs text-[var(--rf-text-dim)] max-w-sm mb-6 leading-relaxed">
-                  We encountered an error connecting to the streaming provider. Your API key might be expired, invalid, or blocked. Please verify your <code className="bg-white/10 px-1 py-0.5 rounded text-[var(--rf-red)] font-mono text-[10px]">VITE_API_KEY</code> in the environment.
+                  We encountered an error connecting to the streaming provider.
+                  Your API key might be expired, invalid, or blocked. Please
+                  verify your{" "}
+                  <code className="bg-white/10 px-1 py-0.5 rounded text-[var(--rf-red)] font-mono text-[10px]">
+                    VITE_API_KEY
+                  </code>
+                  .
                 </p>
                 <div className="flex items-center gap-3">
                   <button
@@ -221,11 +267,14 @@ export default function Watch() {
                 </div>
               </div>
             ) : (
-              <div className="w-full h-[55vh] md:h-[65vh] bg-white/[0.02] border border-white/[0.08] rounded-3xl flex flex-col items-center justify-center p-6 text-center">
+              <div className="w-full h-full lg:h-[65vh] bg-black lg:bg-white/[0.02] lg:border lg:border-white/[0.08] lg:rounded-3xl flex flex-col items-center justify-center p-6 text-center">
                 <AlertCircle className="text-[var(--rf-red)] mb-4" size={40} />
-                <h4 className="text-base font-bold text-white mb-2">No Streaming Sources Found</h4>
+                <h4 className="text-base font-bold text-white mb-2">
+                  No Streaming Sources Found
+                </h4>
                 <p className="text-xs text-[var(--rf-text-dim)] max-w-sm mb-6">
-                  We couldn't find any streamable video files for this title. You can still try the download mirror in details.
+                  We couldn't find any streamable video files for this title.
+                  You can still try the download mirror in details.
                 </p>
                 <button
                   onClick={() => navigate(`/movie/${slug}`)}
@@ -236,18 +285,23 @@ export default function Watch() {
               </div>
             )}
 
-            {/* Stream info below video */}
-            <div className="mt-6 p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-md">
-              <h1 className="text-xl md:text-2xl font-bold text-white mb-1.5">{subject.title}</h1>
+            {/* Stream info below video - HIDDEN on Mobile watch screen, visible on Desktop */}
+            <div className="hidden lg:block mt-6 p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-md">
+              <h1 className="text-xl md:text-2xl font-bold text-white mb-1.5">
+                {subject.title}
+              </h1>
               {isTvSeries && (
                 <div className="text-sm font-bold text-[var(--rf-red)] mb-4 uppercase tracking-wider">
                   Season {selectedSeason} • Episode {selectedEpisode}
                 </div>
               )}
-              
+
               <div className="flex flex-wrap gap-2 mb-4">
-                {subject.genre?.split(',').map((g) => (
-                  <span key={g} className="text-[10px] font-bold bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-white/70">
+                {subject.genre?.split(",").map((g) => (
+                  <span
+                    key={g}
+                    className="text-[10px] font-bold bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-white/70"
+                  >
                     {g.trim()}
                   </span>
                 ))}
@@ -263,20 +317,27 @@ export default function Watch() {
                 )}
               </div>
               <p className="text-xs md:text-sm text-[var(--rf-text-muted)] leading-relaxed">
-                {subject.description || info.metadata?.description || 'No description available for this title.'}
+                {subject.description ||
+                  info.metadata?.description ||
+                  "No description available for this title."}
               </p>
             </div>
 
-            {/* X-Ray panel below info */}
+            {/* X-Ray panel below info - HIDDEN on Mobile watch screen, visible on Desktop */}
             {info?.stars && info.stars.length > 0 && (
-              <div className="mt-4 p-5 rounded-2xl bg-white/[0.02] border border-white/[0.05] flex flex-col gap-3">
+              <div className="hidden lg:flex mt-4 p-5 rounded-2xl bg-white/[0.02] border border-white/[0.05] flex-col gap-3">
                 <div className="flex items-center justify-between border-b border-white/5 pb-2">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="text-[var(--rf-red)] animate-pulse" size={14} />
-                    <span className="text-[10px] font-black uppercase text-white tracking-widest">RUNFlix X-RAY • Cast In Scene</span>
+                    <Sparkles
+                      className="text-[var(--rf-red)] animate-pulse"
+                      size={14}
+                    />
+                    <span className="text-[10px] font-black uppercase text-white tracking-widest">
+                      Lenzorah X-RAY • Cast In Scene
+                    </span>
                   </div>
                 </div>
-                
+
                 <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide snap-x">
                   {info.stars.slice(0, 12).map((star: any, idx: number) => (
                     <div
@@ -302,12 +363,18 @@ export default function Watch() {
                         )}
                       </div>
                       <div className="w-full">
-                        <p className="text-[9px] font-bold text-white truncate w-full" title={star.name}>
-                          {star.name.split(' ')[0]}
+                        <p
+                          className="text-[9px] font-bold text-white truncate w-full"
+                          title={star.name}
+                        >
+                          {star.name.split(" ")[0]}
                         </p>
                         {star.character && (
-                          <p className="text-[8px] text-white/40 truncate w-full" title={star.character}>
-                            as {star.character.split(' ')[0]}
+                          <p
+                            className="text-[8px] text-white/40 truncate w-full"
+                            title={star.character}
+                          >
+                            as {star.character.split(" ")[0]}
                           </p>
                         )}
                       </div>
@@ -318,24 +385,26 @@ export default function Watch() {
             )}
           </div>
 
-          {/* Mobile Backdrop Overlay when sidebar is open */}
+          {/* Backdrop Overlay when sidebar is open */}
           {isTvSeries && sidebarOpen && (
             <div
               onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden cursor-pointer pointer-events-auto select-none"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 cursor-pointer pointer-events-auto select-none lg:hidden"
             />
           )}
 
-          {/* Sliding sidebar container for Episodes */}
+          {/* Sliding sidebar container for Episodes - Desktop only */}
           {isTvSeries && sidebarOpen && (
-            <div className={cn(
-              "fixed inset-y-0 right-0 z-50 w-[85vw] max-w-sm h-full p-6 flex flex-col gap-4 overflow-y-auto shadow-2xl transition-transform duration-300",
-              "bg-black/95 backdrop-blur-2xl border-l border-white/10 rounded-l-3xl",
-              "lg:relative lg:inset-auto lg:z-0 lg:w-80 lg:h-auto lg:bg-white/[0.02] lg:border lg:border-white/[0.05] lg:rounded-3xl lg:max-h-[85vh] lg:p-5 lg:shadow-none lg:translate-x-0"
-            )}>
-              {/* Mobile header controls */}
+            <div
+              className={cn(
+                "hidden lg:flex lg:relative lg:w-80 lg:h-auto lg:bg-white/[0.02] lg:border lg:border-white/[0.05] lg:rounded-3xl lg:max-h-[85vh] lg:p-5 lg:flex-col lg:gap-4 lg:overflow-y-auto lg:translate-x-0",
+              )}
+            >
+              {/* Header controls */}
               <div className="flex items-center justify-between lg:hidden border-b border-white/5 pb-3 mb-1">
-                <span className="text-xs font-black text-[var(--rf-red)] uppercase tracking-wider">Episodes Menu</span>
+                <span className="text-xs font-black text-[var(--rf-red)] uppercase tracking-wider">
+                  Episodes Menu
+                </span>
                 <button
                   onClick={() => setSidebarOpen(false)}
                   className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/60 hover:text-white"
@@ -344,7 +413,7 @@ export default function Watch() {
                   <X size={16} />
                 </button>
               </div>
-              
+
               {/* Season Selection Switcher */}
               <div>
                 <label className="block text-[10px] font-bold text-[var(--rf-text-dim)] mb-1.5 uppercase tracking-wider">
@@ -361,7 +430,7 @@ export default function Watch() {
                           "px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex-1 text-center min-w-[70px]",
                           viewingSeason === s.se
                             ? "bg-[var(--rf-red)] border-none text-white shadow-lg shadow-[var(--rf-red)]/20"
-                            : "bg-white/5 border-white/10 hover:bg-white/10 text-white/60"
+                            : "bg-white/5 border-white/10 hover:bg-white/10 text-white/60",
                         )}
                       >
                         S{s.se}
@@ -372,16 +441,20 @@ export default function Watch() {
 
               <div className="border-t border-white/5 my-1"></div>
 
-              {/* Episodes List Grid */}
-              <div className="flex flex-col gap-2">
+              {/* Episodes List/Grid */}
+              <div className="flex flex-col gap-2 flex-1 overflow-y-auto pr-1 scrollbar-hide">
                 <span className="text-[10px] font-bold text-[var(--rf-text-dim)] uppercase tracking-wider mb-1 block">
                   Episodes in Season {viewingSeason}
                 </span>
-                
-                <div className="space-y-1.5">
+
+                <div className="space-y-1.5 pb-6">
                   {episodeNumbers.map((ep) => {
-                    const isCurrent = ep === selectedEpisode && viewingSeason === selectedSeason;
-                    const isCompleted = subject.subjectId && isEpisodeComplete(subject.subjectId, ep);
+                    const isCurrent =
+                      ep === selectedEpisode &&
+                      viewingSeason === selectedSeason;
+                    const isCompleted =
+                      subject.subjectId &&
+                      isEpisodeComplete(subject.subjectId, ep);
 
                     // Dynamic Episode Progress tracking
                     let realEpProgress = 0;
@@ -389,8 +462,12 @@ export default function Watch() {
                       realEpProgress = 100;
                     } else {
                       const epTitle = `${subject.title} - S${viewingSeason}E${ep}`;
-                      const savedTime = localStorage.getItem(`rf_progress_${epTitle}`);
-                      const duration = localStorage.getItem(`rf_progress_${epTitle}_duration`);
+                      const savedTime = localStorage.getItem(
+                        `rf_progress_${epTitle}`,
+                      );
+                      const duration = localStorage.getItem(
+                        `rf_progress_${epTitle}_duration`,
+                      );
                       if (savedTime && duration) {
                         const t = parseFloat(savedTime);
                         const d = parseFloat(duration);
@@ -403,12 +480,18 @@ export default function Watch() {
                     return (
                       <button
                         key={ep}
-                        onClick={() => handleEpisodeSelect(viewingSeason, ep)}
+                        onClick={() => {
+                          handleEpisodeSelect(viewingSeason, ep);
+                          // Close sidebar automatically only on mobile screens
+                          if (window.innerWidth < 1024) {
+                            setSidebarOpen(false);
+                          }
+                        }}
                         className={cn(
                           "w-full text-left p-2.5 rounded-2xl border transition-all duration-300 flex gap-3 relative overflow-hidden group",
                           isCurrent
                             ? "bg-white/[0.04] border-[var(--rf-red)]/40 shadow-lg shadow-[var(--rf-red)]/5"
-                            : "bg-white/[0.01] border-white/5 hover:border-white/10 hover:bg-white/[0.03]"
+                            : "bg-white/[0.01] border-white/5 hover:border-white/10 hover:bg-white/[0.03]",
                         )}
                       >
                         {/* 16:9 Mini Backdrop Thumbnail */}
@@ -428,15 +511,17 @@ export default function Watch() {
                                 <span className="w-1 bg-[var(--rf-red)] animate-[pulse_0.7s_infinite_alternate] h-3"></span>
                               </div>
                             ) : (
-                              <span className="text-white/80 font-black text-sm">{ep}</span>
+                              <span className="text-white/80 font-black text-sm">
+                                {ep}
+                              </span>
                             )}
                           </div>
-                          
+
                           {/* Watched complete indicator */}
                           {isCompleted && (
-                             <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white shadow-md">
-                               <Check size={9} strokeWidth={3} />
-                             </div>
+                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white shadow-md">
+                              <Check size={9} strokeWidth={3} />
+                            </div>
                           )}
                         </div>
 
@@ -444,17 +529,25 @@ export default function Watch() {
                         <div className="flex flex-col justify-between py-0.5 flex-1 min-w-0">
                           <div>
                             <div className="flex items-center gap-1.5 mb-0.5">
-                              <span className={cn(
-                                "text-[11px] font-black tracking-wider uppercase",
-                                isCurrent ? "text-[var(--rf-red)]" : "text-white/60"
-                              )}>
+                              <span
+                                className={cn(
+                                  "text-[11px] font-black tracking-wider uppercase",
+                                  isCurrent
+                                    ? "text-[var(--rf-red)]"
+                                    : "text-white/60",
+                                )}
+                              >
                                 Episode {ep}
                               </span>
                             </div>
-                            <h5 className={cn(
-                              "text-xs truncate",
-                              isCurrent ? "font-bold text-white" : "text-white/80"
-                            )}>
+                            <h5
+                              className={cn(
+                                "text-xs truncate",
+                                isCurrent
+                                  ? "font-bold text-white"
+                                  : "text-white/80",
+                              )}
+                            >
                               {subject.title} S{viewingSeason}E{ep}
                             </h5>
                           </div>
@@ -465,7 +558,9 @@ export default function Watch() {
                               style={{ width: `${realEpProgress}%` }}
                               className={cn(
                                 "h-full rounded-full transition-all duration-300",
-                                realEpProgress > 0 ? "bg-[var(--rf-red)]" : "bg-white/40"
+                                realEpProgress > 0
+                                  ? "bg-[var(--rf-red)]"
+                                  : "bg-white/40",
                               )}
                             />
                           </div>
@@ -475,12 +570,9 @@ export default function Watch() {
                   })}
                 </div>
               </div>
-
             </div>
           )}
-
         </div>
-
       </div>
     </div>
   );

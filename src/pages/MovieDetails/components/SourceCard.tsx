@@ -1,5 +1,5 @@
-import { memo } from 'react';
-import { Download, Loader2, HardDrive } from 'lucide-react';
+import { memo, useEffect } from 'react';
+import { Download, Loader2, HardDrive, Star } from 'lucide-react';
 import { SourceItem } from '../types';
 import { useDownloadStore } from '../hooks/useDownloadStore';
 import { formatFileSize } from '../../../utils/format';
@@ -12,15 +12,45 @@ interface SourceCardProps {
   onDownload: (src: SourceItem, id: string) => void;
 }
 
+// Preferred quality helper
+const PREF_KEY = 'rf-preferred-quality';
+
+function getPreferredQuality(): string | null {
+  try {
+    return localStorage.getItem(PREF_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setPreferredQuality(quality: string): void {
+  try {
+    localStorage.setItem(PREF_KEY, quality);
+  } catch {
+    // ignore
+  }
+}
+
 export const SourceCard = memo(({ src, downloadId, title, episodeLabel, onDownload }: SourceCardProps) => {
   const progress = useDownloadStore((state) => state.activeDownloads[downloadId] || 0);
   const isDownloading = progress > 0;
 
+  const quality = src.quality || 'HD';
+  const preferredQuality = getPreferredQuality();
+  const isPreferred = preferredQuality && quality.toLowerCase() === preferredQuality.toLowerCase();
+
+  const handleDownload = () => {
+    setPreferredQuality(quality);
+    onDownload(src, downloadId);
+  };
+
   return (
     <button
-      onClick={() => onDownload(src, downloadId)}
-      aria-label={`Download ${title} ${episodeLabel || ''} ${src.quality || 'Standard'} Quality`}
-      className="w-full text-left flex items-center justify-between p-4 glass-2 hover:bg-white/[0.06] rounded-xl transition-all group relative overflow-hidden active:scale-[0.99]"
+      onClick={handleDownload}
+      aria-label={`Download ${title} ${episodeLabel || ''} ${quality} Quality`}
+      className={`w-full text-left flex items-center justify-between p-4 glass-2 hover:bg-white/[0.06] rounded-xl transition-all group relative overflow-hidden active:scale-[0.99] ${
+        isPreferred ? 'ring-1 ring-[var(--rf-red)]/30 bg-[var(--rf-red)]/[0.03]' : ''
+      }`}
     >
       {/* Progress Bar */}
       {isDownloading && (
@@ -32,14 +62,24 @@ export const SourceCard = memo(({ src, downloadId, title, episodeLabel, onDownlo
 
       <div className="flex items-center gap-3.5 relative z-10">
         {/* Quality Badge */}
-        <div className="w-12 h-12 rounded-xl bg-[var(--rf-surface)] flex items-center justify-center font-black text-[var(--rf-red)] border border-[var(--rf-border)] text-sm">
-          {src.quality?.replace('p', '') || 'HD'}
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black border text-sm ${
+          isPreferred
+            ? 'bg-[var(--rf-red)]/10 text-[var(--rf-red)] border-[var(--rf-red)]/20'
+            : 'bg-[var(--rf-surface)] text-[var(--rf-red)] border-[var(--rf-border)]'
+        }`}>
+          {quality.replace('p', '') || 'HD'}
         </div>
 
         {/* Info */}
         <div>
           <div className="font-semibold text-white text-sm group-hover:text-[var(--rf-red)] transition-colors flex items-center gap-2">
-            {src.quality || 'Standard'} Quality
+            {quality} Quality
+            {isPreferred && (
+              <span className="flex items-center gap-0.5 text-[9px] font-bold text-[var(--rf-gold)] uppercase tracking-wider">
+                <Star size={8} className="fill-current" />
+                Preferred
+              </span>
+            )}
             {isDownloading && (
               <span className="text-xs text-[var(--rf-red)] font-bold">{progress}%</span>
             )}

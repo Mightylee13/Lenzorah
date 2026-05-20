@@ -1,5 +1,5 @@
 {
-  "name": "RUNFlix",
+  "name": "Lenzorah",
   "description": "A modern movie and TV series discovery platform built with React, Vite, TailwindCSS, and the GiftedTech Movies API. Browse trending movies, search titles, view detailed metadata, explore TV seasons and episodes, and download available sources in multiple qualities with subtitle support.",
   "requestFramePermissions": [],
   "majorCapabilities": [

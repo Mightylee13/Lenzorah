@@ -10,9 +10,7 @@ import axios, {
  * ==================================================
  */
 
-const API_BASE = import.meta.env.DEV
-  ? '/api/v2'
-  : 'https://movieapi.giftedtech.co.ke/api/v2';
+const API_BASE = '/api/v2';
 
 const API_KEY = import.meta.env.VITE_API_KEY;
 

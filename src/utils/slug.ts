@@ -1,5 +1,5 @@
 /**
- * SEO-friendly slug utilities for RUNFlix URLs
+ * SEO-friendly slug utilities for Lenzorah URLs
  */
 
 /**
@@ -9,10 +9,10 @@ export function slugify(text: string): string {
   return text
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
     .slice(0, 60);
 }
 
@@ -30,12 +30,12 @@ export function buildMovieSlug(title: string, id: string): string {
  * Handles both "citadel-Maf0aT2zq24" and plain "Maf0aT2zq24"
  */
 export function extractIdFromSlug(slug: string): string {
-  if (!slug) return '';
+  if (!slug) return "";
 
   // The ID is the last segment after the final hyphen,
   // but only if the part after the last hyphen looks like an ID
-  const lastHyphenIndex = slug.lastIndexOf('-');
-  
+  const lastHyphenIndex = slug.lastIndexOf("-");
+
   if (lastHyphenIndex === -1) {
     // No hyphen found, the whole thing is the ID
     return slug;

@@ -8,6 +8,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import { MovieCardGrid } from '../components/MovieCard';
 import { GridSkeleton } from '../components/ui/Skeleton';
 import { useSEO } from '../hooks/useSEO';
+import AISearchPanel from '../components/AISearchPanel';
 
 const TRENDING_TAGS = ['Batman', 'Spiderman', 'Avengers', 'Horror', 'Action', 'Sci-Fi', 'Marvel', 'Anime', 'Korean', 'Comedy', 'Thriller', 'Romance'];
 
@@ -40,8 +41,33 @@ export default function Search() {
     enabled: debouncedQuery.length > 2,
   });
 
-  const results = data?.pages.flatMap((page) => page.items) || [];
+  const rawResults = data?.pages.flatMap((page) => page.items) || [];
   const totalCount = data?.pages[0]?.pager?.totalCount || 0;
+
+  // Sort results by title similarity to query (closest match first)
+  const results = [...rawResults].sort((a, b) => {
+    const q = debouncedQuery.toLowerCase().trim();
+    const tA = (a.title || '').toLowerCase();
+    const tB = (b.title || '').toLowerCase();
+
+    const scoreTitle = (t: string): number => {
+      if (t === q) return 100;                        // exact match
+      if (t.startsWith(q)) return 80;                 // starts with query
+      if (t.includes(q)) return 60;                   // contains query
+      // word-level partial matching
+      const qWords = q.split(/\s+/);
+      const matchedWords = qWords.filter(w => t.includes(w)).length;
+      if (matchedWords > 0) return 20 + (matchedWords / qWords.length) * 30;
+      return 0;
+    };
+
+    const scoreA = scoreTitle(tA);
+    const scoreB = scoreTitle(tB);
+
+    if (scoreA !== scoreB) return scoreB - scoreA;     // higher similarity first
+    // Tiebreak by rating
+    return (b.imdbRatingValue || 0) - (a.imdbRatingValue || 0);
+  });
 
   // Save to recent searches when results load
   useEffect(() => {
@@ -71,6 +97,11 @@ export default function Search() {
 
   const handleTagClick = useCallback((tag: string) => {
     setQuery(tag);
+    inputRef.current?.focus();
+  }, []);
+
+  const handleAISearchTitle = useCallback((title: string) => {
+    setQuery(title);
     inputRef.current?.focus();
   }, []);
 
@@ -244,6 +275,9 @@ export default function Search() {
           transition={{ delay: 0.1 }}
           className="space-y-8 pt-2"
         >
+          {/* AI Search Panel */}
+          <AISearchPanel onSearchTitle={handleAISearchTitle} />
+
           {/* Trending Searches */}
           <div>
             <h3 className="text-xs font-bold text-[var(--rf-text-muted)] uppercase tracking-wider mb-4 flex items-center gap-1.5">

@@ -97,6 +97,8 @@ export const MovieRow = memo(({ title, subtitle, children, onViewAll }: MovieRow
           className="flex gap-4 md:gap-5 overflow-x-auto px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28 pb-3 scrollbar-hide snap-x snap-mandatory"
         >
           {children}
+          {/* WebKit right-padding fix */}
+          <div className="shrink-0 w-1 sm:w-4 md:w-10 lg:w-14" aria-hidden="true" />
         </div>
       </div>
     </section>

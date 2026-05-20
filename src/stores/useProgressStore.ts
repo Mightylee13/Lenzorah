@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface ProgressData {
   lastEpisode: number;
@@ -12,13 +12,17 @@ interface ProgressData {
 
 interface ProgressStore {
   progress: Record<string, ProgressData>;
-  markEpisodeComplete: (subjectId: string, season: number, episode: number) => void;
+  markEpisodeComplete: (
+    subjectId: string,
+    season: number,
+    episode: number,
+  ) => void;
   saveProgress: (
     subjectId: string,
     season: number,
     episode: number,
     lastTime: number,
-    duration: number
+    duration: number,
   ) => void;
   getProgress: (subjectId: string) => ProgressData | null;
   isEpisodeComplete: (subjectId: string, episode: number) => boolean;
@@ -40,7 +44,9 @@ export const useProgressStore = create<ProgressStore>()(
             completedEpisodes: [],
           };
 
-          const newCompleted = [...new Set([...current.completedEpisodes, episode])];
+          const newCompleted = [
+            ...new Set([...current.completedEpisodes, episode]),
+          ];
 
           return {
             progress: {
@@ -100,7 +106,7 @@ export const useProgressStore = create<ProgressStore>()(
       clearProgress: () => set({ progress: {} }),
     }),
     {
-      name: 'runflix-progress-storage',
-    }
-  )
+      name: "runflix-progress-storage",
+    },
+  ),
 );

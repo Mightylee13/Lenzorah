@@ -4,10 +4,14 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig(({ mode }) => {
-  /**
-   * Load all env variables
-   */
+    /**
+     * Load all env variables
+     */
   const env = loadEnv(mode, process.cwd(), '');
+
+  // Fallback for local development
+  env.VITE_API_BASE = env.VITE_API_BASE || 'https://movieapi.gifted.co.ke';
+
 
   return {
     plugins: [
@@ -25,9 +29,9 @@ export default defineConfig(({ mode }) => {
      * Environment variables exposed to client
      * ONLY expose variables prefixed with VITE_
      */
-    define: {
-      __APP_ENV__: JSON.stringify(env.VITE_APP_ENV),
-    },
+      define: {
+        __APP_ENV__: JSON.stringify(env.VITE_APP_ENV),
+      },
 
     server: {
       host: '0.0.0.0',
@@ -48,7 +52,7 @@ export default defineConfig(({ mode }) => {
        */
       proxy: {
         '/api': {
-          target: 'https://movieapi.giftedtech.co.ke',
+          target: env.VITE_API_BASE,
 
           changeOrigin: true,
 
