@@ -12,7 +12,9 @@ import axios, {
 
 const API_BASE = '/api/v2';
 
-const API_KEY = import.meta.env.VITE_API_KEY;
+const API_KEY =
+  import.meta.env.VITE_API_KEY ||
+  "gifted_movieapi_789fbud2389889dg8962e098g23d6";
 
 /**
  * ==================================================

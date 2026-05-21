@@ -14,7 +14,7 @@ import { useWatchlistStore } from '../stores/useWatchlistStore';
 import { buildMovieSlug } from '../utils/slug';
 import { useMaintenanceStore } from '../stores/useMaintenanceStore';
 
-export default function Daratech() {
+export default function LenzoControl() {
   // ==========================================
   // 1. SECURITY & LOCK LOGIC
   // ==========================================
@@ -331,8 +331,8 @@ export default function Daratech() {
             <Lock size={28} className="animate-pulse" />
           </div>
 
-          <h1 className="text-2xl font-black tracking-wide text-white uppercase">DARATECH LOCKOUT</h1>
-          <p className="text-xs text-white/50 uppercase tracking-widest mt-1 mb-6">RUNFlix Internal Administration Gate</p>
+          <h1 className="text-2xl font-black tracking-wide text-white uppercase">LENZO LOCKOUT</h1>
+          <p className="text-xs text-white/50 uppercase tracking-widest mt-1 mb-6">Lenzorah Internal Administration Gate</p>
 
           {isLockedOut ? (
             <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 mb-6">

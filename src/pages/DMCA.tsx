@@ -6,7 +6,7 @@ import { ChevronLeft, Shield, AlertTriangle, FileText, Mail, Clock, CheckCircle2
 export default function DMCA() {
   useSEO({
     title: 'DMCA Policy',
-    description: 'RUNFlix DMCA Policy — Learn how to submit a copyright takedown request.',
+    description: 'Lenzorah DMCA Policy — Learn how to submit a copyright takedown request.',
   });
 
   const lastUpdated = 'May 17, 2026';
@@ -19,12 +19,18 @@ export default function DMCA() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-amber-500/5 blur-[120px] rounded-full pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-5 lg:px-10 pt-10 pb-8 relative z-10">
-          <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}>
+          <motion.div
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
             <Link
               to="/"
               className="inline-flex items-center gap-2 text-[var(--rf-text-muted)] hover:text-white transition-colors mb-8 group"
             >
-              <ChevronLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+              <ChevronLeft
+                size={18}
+                className="group-hover:-translate-x-0.5 transition-transform"
+              />
               <span className="text-sm font-medium">Back to Home</span>
             </Link>
           </motion.div>
@@ -39,10 +45,14 @@ export default function DMCA() {
               <Shield size={24} className="text-amber-400" />
             </div>
             <div>
-              <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">DMCA Policy</h1>
+              <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                DMCA Policy
+              </h1>
               <div className="flex items-center gap-2 mt-1">
                 <Clock size={12} className="text-[var(--rf-text-dim)]" />
-                <span className="text-xs text-[var(--rf-text-dim)]">Last updated: {lastUpdated}</span>
+                <span className="text-xs text-[var(--rf-text-dim)]">
+                  Last updated: {lastUpdated}
+                </span>
               </div>
             </div>
           </motion.div>
@@ -63,98 +73,242 @@ export default function DMCA() {
               <AlertTriangle size={20} className="text-amber-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white mb-1">Important Notice</h3>
+              <h3 className="text-sm font-bold text-white mb-1">
+                Important Notice
+              </h3>
               <p className="text-xs text-[var(--rf-text-muted)] leading-relaxed">
-                RUNFlix respects the intellectual property rights of others. We do not host, store, or upload any media
-                content on our servers. All content is provided through publicly available third-party APIs. If you believe
-                any content accessible through our service infringes your copyright, please follow the process below.
+                Lenzorah respects the intellectual property rights of others. We
+                do not host, store, or upload any media content on our servers.
+                All content is provided through publicly available third-party
+                APIs. If you believe any content accessible through our service
+                infringes your copyright, please follow the process below.
               </p>
             </div>
           </div>
         </div>
 
         <div className="space-y-8">
-          <Section icon={<Shield size={18} />} title="1. What is DMCA?" color="amber">
-            <p>The Digital Millennium Copyright Act (DMCA) is a United States copyright law that provides a process for copyright holders to request the removal of content that infringes their copyrights from online platforms.</p>
-            <p>RUNFlix complies with DMCA takedown requests and will promptly respond to properly submitted notices.</p>
+          <Section
+            icon={<Shield size={18} />}
+            title="1. What is DMCA?"
+            color="amber"
+          >
+            <p>
+              The Digital Millennium Copyright Act (DMCA) is a United States
+              copyright law that provides a process for copyright holders to
+              request the removal of content that infringes their copyrights
+              from online platforms.
+            </p>
+            <p>
+              Lenzorah complies with DMCA takedown requests and will promptly
+              respond to properly submitted notices.
+            </p>
           </Section>
 
-          <Section icon={<FileText size={18} />} title="2. Our Position on Content" color="blue">
-            <p>RUNFlix operates as a <strong className="text-white">content discovery and aggregation platform</strong>. We want to be clear about our infrastructure:</p>
+          <Section
+            icon={<FileText size={18} />}
+            title="2. Our Position on Content"
+            color="blue"
+          >
+            <p>
+              Lenzorah operates as a{" "}
+              <strong className="text-white">
+                content discovery and aggregation platform
+              </strong>
+              . We want to be clear about our infrastructure:
+            </p>
             <ul className="list-disc list-inside space-y-2 text-[var(--rf-text-muted)] mt-3">
-              <li>We <strong className="text-white">do not</strong> host, upload, or store any video, audio, or image content on our servers.</li>
-              <li>All media content is sourced from <strong className="text-white">publicly available third-party APIs</strong> and external streaming services.</li>
-              <li>We <strong className="text-white">do not</strong> modify, transcode, or redistribute any copyrighted material.</li>
-              <li>Movie metadata (titles, descriptions, posters) is fetched from third-party API databases.</li>
+              <li>
+                We <strong className="text-white">do not</strong> host, upload,
+                or store any video, audio, or image content on our servers.
+              </li>
+              <li>
+                All media content is sourced from{" "}
+                <strong className="text-white">
+                  publicly available third-party APIs
+                </strong>{" "}
+                and external streaming services.
+              </li>
+              <li>
+                We <strong className="text-white">do not</strong> modify,
+                transcode, or redistribute any copyrighted material.
+              </li>
+              <li>
+                Movie metadata (titles, descriptions, posters) is fetched from
+                third-party API databases.
+              </li>
             </ul>
           </Section>
 
-          <Section icon={<AlertTriangle size={18} />} title="3. Filing a DMCA Takedown Notice" color="rose">
-            <p>If you are a copyright owner (or authorized to act on behalf of one) and believe that content accessible through RUNFlix infringes your copyrights, please submit a written DMCA takedown notice containing the following:</p>
+          <Section
+            icon={<AlertTriangle size={18} />}
+            title="3. Filing a DMCA Takedown Notice"
+            color="rose"
+          >
+            <p>
+              If you are a copyright owner (or authorized to act on behalf of
+              one) and believe that content accessible through Lenzorah
+              infringes your copyrights, please submit a written DMCA takedown
+              notice containing the following:
+            </p>
 
             <div className="space-y-3 mt-4">
-              <RequirementItem number={1} text="Identification of the copyrighted work claimed to have been infringed." />
-              <RequirementItem number={2} text="Identification of the material claimed to be infringing, including specific URL(s) or sufficient information for us to locate it." />
-              <RequirementItem number={3} text="Your full name, mailing address, telephone number, and email address." />
-              <RequirementItem number={4} text="A statement that you have a good faith belief that use of the material is not authorized by the copyright owner, its agent, or the law." />
-              <RequirementItem number={5} text="A statement, made under penalty of perjury, that the information in the notification is accurate and that you are authorized to act on behalf of the copyright owner." />
-              <RequirementItem number={6} text="Your physical or electronic signature." />
+              <RequirementItem
+                number={1}
+                text="Identification of the copyrighted work claimed to have been infringed."
+              />
+              <RequirementItem
+                number={2}
+                text="Identification of the material claimed to be infringing, including specific URL(s) or sufficient information for us to locate it."
+              />
+              <RequirementItem
+                number={3}
+                text="Your full name, mailing address, telephone number, and email address."
+              />
+              <RequirementItem
+                number={4}
+                text="A statement that you have a good faith belief that use of the material is not authorized by the copyright owner, its agent, or the law."
+              />
+              <RequirementItem
+                number={5}
+                text="A statement, made under penalty of perjury, that the information in the notification is accurate and that you are authorized to act on behalf of the copyright owner."
+              />
+              <RequirementItem
+                number={6}
+                text="Your physical or electronic signature."
+              />
             </div>
           </Section>
 
-          <Section icon={<Mail size={18} />} title="4. How to Submit" color="emerald">
+          <Section
+            icon={<Mail size={18} />}
+            title="4. How to Submit"
+            color="emerald"
+          >
             <p>Send your DMCA takedown notice to:</p>
             <div className="glass rounded-xl p-5 mt-4">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <Mail size={16} className="text-blue-400 shrink-0" />
                   <div>
-                    <span className="text-[10px] text-[var(--rf-text-dim)] uppercase tracking-wider font-bold block">Email</span>
-                    <a href="mailto:daratech.web@gmail.com" className="text-sm text-blue-400 hover:underline font-medium">
-                      daratech.web@gmail.com
+                    <span className="text-[10px] text-[var(--rf-text-dim)] uppercase tracking-wider font-bold block">
+                      Email
+                    </span>
+                    <a
+                      href="mailto:daratech.web@gmail.com"
+                      className="text-sm text-blue-400 hover:underline font-medium"
+                    >
+                      darasimiadebanjo32@gmail.com
                     </a>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <FileText size={16} className="text-emerald-400 shrink-0" />
                   <div>
-                    <span className="text-[10px] text-[var(--rf-text-dim)] uppercase tracking-wider font-bold block">Subject Line</span>
-                    <span className="text-sm text-white font-medium">DMCA Takedown Request — [Content Title]</span>
+                    <span className="text-[10px] text-[var(--rf-text-dim)] uppercase tracking-wider font-bold block">
+                      Subject Line
+                    </span>
+                    <span className="text-sm text-white font-medium">
+                      DMCA Takedown Request — [Content Title]
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
-            <p className="mt-4">You can also use our <Link to="/contact" className="text-blue-400 hover:underline">Contact page</Link> and select "Copyright/DMCA" as the subject.</p>
+            <p className="mt-4">
+              You can also use our{" "}
+              <Link to="/contact" className="text-blue-400 hover:underline">
+                Contact page
+              </Link>{" "}
+              and select "Copyright/DMCA" as the subject.
+            </p>
           </Section>
 
-          <Section icon={<CheckCircle2 size={18} />} title="5. Response Process" color="teal">
+          <Section
+            icon={<CheckCircle2 size={18} />}
+            title="5. Response Process"
+            color="teal"
+          >
             <p>Upon receiving a valid DMCA takedown notice, we will:</p>
             <div className="space-y-3 mt-4">
-              <ProcessStep step={1} text="Acknowledge receipt of your notice within 24-48 hours." />
-              <ProcessStep step={2} text="Review the reported content and verify the claim." />
-              <ProcessStep step={3} text="Remove or disable access to the infringing material promptly." />
-              <ProcessStep step={4} text="Notify the affected parties if applicable." />
-              <ProcessStep step={5} text="Confirm the action taken to the complainant." />
+              <ProcessStep
+                step={1}
+                text="Acknowledge receipt of your notice within 24-48 hours."
+              />
+              <ProcessStep
+                step={2}
+                text="Review the reported content and verify the claim."
+              />
+              <ProcessStep
+                step={3}
+                text="Remove or disable access to the infringing material promptly."
+              />
+              <ProcessStep
+                step={4}
+                text="Notify the affected parties if applicable."
+              />
+              <ProcessStep
+                step={5}
+                text="Confirm the action taken to the complainant."
+              />
             </div>
           </Section>
 
-          <Section icon={<AlertTriangle size={18} />} title="6. Counter-Notification" color="purple">
-            <p>If you believe your content was wrongfully removed, you may file a counter-notification containing:</p>
+          <Section
+            icon={<AlertTriangle size={18} />}
+            title="6. Counter-Notification"
+            color="purple"
+          >
+            <p>
+              If you believe your content was wrongfully removed, you may file a
+              counter-notification containing:
+            </p>
             <ul className="list-disc list-inside space-y-2 text-[var(--rf-text-muted)] mt-3">
-              <li>Identification of the material that was removed and the location where it appeared before removal.</li>
-              <li>A statement under penalty of perjury that you have a good faith belief the material was removed by mistake or misidentification.</li>
-              <li>Your name, address, phone number, and consent to the jurisdiction of your local federal court.</li>
+              <li>
+                Identification of the material that was removed and the location
+                where it appeared before removal.
+              </li>
+              <li>
+                A statement under penalty of perjury that you have a good faith
+                belief the material was removed by mistake or misidentification.
+              </li>
+              <li>
+                Your name, address, phone number, and consent to the
+                jurisdiction of your local federal court.
+              </li>
               <li>Your physical or electronic signature.</li>
             </ul>
           </Section>
 
-          <Section icon={<Shield size={18} />} title="7. Repeat Infringers" color="rose">
-            <p>RUNFlix maintains a policy of terminating access for users or services that are repeat infringers of intellectual property rights, where applicable.</p>
+          <Section
+            icon={<Shield size={18} />}
+            title="7. Repeat Infringers"
+            color="rose"
+          >
+            <p>
+              Lenzorah maintains a policy of terminating access for users or
+              services that are repeat infringers of intellectual property
+              rights, where applicable.
+            </p>
           </Section>
 
-          <Section icon={<FileText size={18} />} title="8. Good Faith" color="amber">
-            <p>Please note that misrepresentation in a DMCA notice may result in liability for damages, including costs and attorney fees. Ensure your claim is valid before submitting.</p>
-            <p>For general inquiries, visit our <Link to="/contact" className="text-amber-400 hover:underline">Contact page</Link>.</p>
+          <Section
+            icon={<FileText size={18} />}
+            title="8. Good Faith"
+            color="amber"
+          >
+            <p>
+              Please note that misrepresentation in a DMCA notice may result in
+              liability for damages, including costs and attorney fees. Ensure
+              your claim is valid before submitting.
+            </p>
+            <p>
+              For general inquiries, visit our{" "}
+              <Link to="/contact" className="text-amber-400 hover:underline">
+                Contact page
+              </Link>
+              .
+            </p>
           </Section>
         </div>
       </motion.div>

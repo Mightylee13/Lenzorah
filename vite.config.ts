@@ -15,6 +15,8 @@ export default defineConfig(({ mode }) => {
   // Fallback for local development
   env.VITE_API_BASE = env.VITE_API_BASE || 'https://movieapi.gifted.co.ke';
 
+console.log(env.VITE_API_KEY);
+
   return {
     plugins: [react(), tailwindcss()],
 
