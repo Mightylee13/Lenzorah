@@ -1,5 +1,6 @@
 const API_BASE = "https://movieapi.gifted.co.ke/api/v2";
-const API_KEY = process.env.VITE_API_KEY;
+const API_KEY =
+  process.env.VITE_API_KEY || process.env.API_KEY || process.env.MOVIE_API_KEY;
 
 function getPathParts(req) {
   const pathValue = req.query?.path;
@@ -41,6 +42,14 @@ async function readRequestBody(req) {
 
 export default async function handler(req, res) {
   try {
+    if (!API_KEY) {
+      console.error("Missing API key for movie API proxy");
+      return res.status(500).json({
+        error:
+          "Missing API key. Set VITE_API_KEY in Vercel environment variables.",
+      });
+    }
+
     const targetUrl = buildTargetUrl(req);
     const body = await readRequestBody(req);
 
@@ -78,4 +87,4 @@ export default async function handler(req, res) {
       error: "Proxy request failed",
     });
   }
-};
+}
