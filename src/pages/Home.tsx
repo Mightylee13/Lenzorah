@@ -368,19 +368,19 @@ export default function Home() {
         ))}
 
         {/* BREATHTAKING WHATSAPP CAMPAIGN BANNER CARD */}
-        <section className="px-6 sm:px-10 lg:px-14 py-4 select-none">
-          <div className="relative rounded-3xl bg-gradient-to-r from-emerald-950/20 via-[#121218] to-emerald-950/20 border border-emerald-500/10 p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center justify-between overflow-hidden shadow-xl">
+        {/* <section className="px-6 sm:px-10 lg:px-14 py-4 select-none">
+          <div className="relative rounded-3xl bg-gradient-to-r from-emerald-950/20 via-[#121218] to-emerald-950/20 border border-emerald-500/10 p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center justify-between overflow-hidden shadow-xl"> */}
             {/* Ambient glows inside card */}
-            <div className="absolute top-0 left-0 w-32 h-32 rounded-full bg-emerald-500/5 blur-[50px] pointer-events-none" />
+            {/* <div className="absolute top-0 left-0 w-32 h-32 rounded-full bg-emerald-500/5 blur-[50px] pointer-events-none" />
             <div className="absolute bottom-0 right-0 w-32 h-32 rounded-full bg-green-500/5 blur-[50px] pointer-events-none" />
 
-            <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
+            <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left"> */}
               {/* Vibrant green WhatsApp bubble */}
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-green-400 text-white flex items-center justify-center shadow-lg shadow-emerald-950/30 shrink-0">
+              {/* <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-green-400 text-white flex items-center justify-center shadow-lg shadow-emerald-950/30 shrink-0">
                 <span className="text-xl font-bold">🍿</span>
               </div>
-              <div>
-                <span className="inline-block px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-extrabold text-[8px] uppercase tracking-wider mb-1.5">
+              <div> */}
+                {/* <span className="inline-block px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-extrabold text-[8px] uppercase tracking-wider mb-1.5">
                   EXCLUSIVE RECOMMENDATIONS
                 </span>
                 <h3 className="text-md md:text-lg font-black tracking-wide text-white uppercase">
@@ -392,9 +392,9 @@ export default function Home() {
                   natively on WhatsApp!
                 </p>
               </div>
-            </div>
+            </div> */}
 
-            <a
+            {/* <a
               href="https://whatsapp.com/channel/0029Vb8esUv3GJP6ymXaNF3g"
               target="_blank"
               rel="noopener noreferrer"
@@ -403,7 +403,7 @@ export default function Home() {
               🚀 Join Channel
             </a>
           </div>
-        </section>
+        </section> */}
 
         {/* Top Rated Section */}
         {trending && trending.length > 5 && (
