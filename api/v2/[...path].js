@@ -1,7 +1,5 @@
 const API_BASE = "https://movieapi.gifted.co.ke/api/v2";
-const API_KEY =
-  process.env.VITE_API_KEY ||
-  "gifted_movieapi_789fbud2389889dg8962e098g23d6";
+const API_KEY = process.env.VITE_API_KEY;
 
 function getPathParts(req) {
   const pathValue = req.query?.path;
@@ -52,6 +50,9 @@ export default async function handler(req, res) {
       Accept: req.headers.accept || "application/json",
       "User-Agent": "Vercel-Proxy",
     };
+
+    console.log("API KEY:", API_KEY);
+    console.log("TARGET:", targetUrl);
 
     const response = await fetch(targetUrl, {
       method: req.method,
