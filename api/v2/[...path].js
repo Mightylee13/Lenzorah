@@ -60,7 +60,6 @@ export default async function handler(req, res) {
       "User-Agent": "Vercel-Proxy",
     };
 
-    console.log("API KEY:", API_KEY);
     console.log("TARGET:", targetUrl);
 
     const response = await fetch(targetUrl, {
