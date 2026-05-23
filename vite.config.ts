@@ -22,7 +22,7 @@ console.log(env.VITE_API_KEY);
 
     resolve: {
       alias: {
-        '@': path.resolve(rootDir, './src'),
+        "@": path.resolve(rootDir, "./src"),
       },
     },
 
@@ -35,21 +35,21 @@ console.log(env.VITE_API_KEY);
     },
 
     server: {
-      host: '0.0.0.0',
+      host: "0.0.0.0",
       port: 5173,
 
       /**
        * HMR Handling
        */
-      hmr: process.env.DISABLE_HMR !== 'true',
+      hmr: process.env.DISABLE_HMR !== "true",
 
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      watch: process.env.DISABLE_HMR === "true" ? null : {},
 
       /**
        * API Proxy
        */
       proxy: {
-        '/api': {
+        "/api": {
           target: env.VITE_API_BASE,
 
           changeOrigin: true,
@@ -65,44 +65,47 @@ console.log(env.VITE_API_KEY);
           //   path.replace(/^\/api/, '/api'),
 
           configure: (proxy) => {
-            proxy.on('proxyReq', (proxyReq) => {
+            proxy.on("proxyReq", (proxyReq) => {
               /**
                * Inject API Key securely
                */
 
-              proxyReq.setHeader(
-                'Authorization',
-                `Bearer ${env.VITE_API_KEY}`,
-              );
+              proxyReq.setHeader("Authorization", `Bearer ${env.VITE_API_KEY}`);
 
               /**
                * Reduce CORS issues
                */
 
-              proxyReq.removeHeader('origin');
-              proxyReq.removeHeader('referer');
+              proxyReq.removeHeader("origin");
+              proxyReq.removeHeader("referer");
             });
           },
         },
       },
     },
 
+    preview: {
+      host: "0.0.0.0",
+      port: process.env.PORT || 4173,
+      allowedHosts: ["lenzorah.onrender.com"],
+    },
+
     /**
      * Build optimizations
      */
     build: {
-      sourcemap: mode === 'development',
+      sourcemap: mode === "development",
 
       chunkSizeWarningLimit: 1200,
 
       rollupOptions: {
         output: {
           manualChunks: {
-            react: ['react', 'react-dom', 'react-router-dom'],
+            react: ["react", "react-dom", "react-router-dom"],
 
-            query: ['@tanstack/react-query'],
+            query: ["@tanstack/react-query"],
 
-            motion: ['motion'],
+            motion: ["motion"],
           },
         },
       },
@@ -113,12 +116,12 @@ console.log(env.VITE_API_KEY);
      */
     optimizeDeps: {
       include: [
-        'react',
-        'react-dom',
-        'react-router-dom',
-        '@tanstack/react-query',
-        'motion',
-        'lucide-react',
+        "react",
+        "react-dom",
+        "react-router-dom",
+        "@tanstack/react-query",
+        "motion",
+        "lucide-react",
       ],
     },
   };
