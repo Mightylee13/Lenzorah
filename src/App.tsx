@@ -4,8 +4,7 @@
  */
 
 // At the top with other imports:
-import MobileNav from "./components/Mobilenav";
-import { useEffect, useState } from "react";
+import MobileNav from "./components/MobileNav";import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
