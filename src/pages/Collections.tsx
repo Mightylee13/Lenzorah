@@ -1,23 +1,17 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchHomepage, fetchTrending } from '../api/client';
-import { motion } from 'motion/react';
-import { Layers, ChevronRight } from 'lucide-react';
-import { MovieCard } from '../components/MovieCard';
-import { MovieRow } from '../components/MovieRow';
-import { MovieRowSkeleton } from '../components/ui/Skeleton';
-import { useSEO } from '../hooks/useSEO';
-import { Link } from 'react-router-dom';
-import { GENRE_LIST } from './Genre';
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchHomepage, fetchTrending, SearchItem } from "../api/client";
+import { motion } from "motion/react";
+import { Layers, ChevronRight } from "lucide-react";
+import { MovieCard } from "../components/MovieCard";
+import { MovieRow } from "../components/MovieRow";
+import { MovieRowSkeleton } from "../components/ui/Skeleton";
+import { useSEO } from "../hooks/useSEO";
+import { Link } from "react-router-dom";
+import { GENRE_LIST } from "./Genre";
 
-type CollectionMovie = Record<string, unknown> & {
-  subjectId?: string;
-  genre?: string;
-  imdbRatingValue?: number;
-  releaseDate?: string;
-  subjectType?: number;
-  countryName?: string;
-};
+// Use SearchItem directly — imdbRatingValue is string from the API ("0", "8.5" etc)
+type CollectionMovie = SearchItem;
 
 type HomepageSection = {
   subjects?: CollectionMovie[];
@@ -36,42 +30,63 @@ type SpecialCollection = {
 };
 
 const GENRE_EMOJIS: Record<string, string> = {
-  action: '💥', comedy: '😂', drama: '🎭', horror: '👻', thriller: '🔪',
-  romance: '💕', 'sci-fi': '🚀', adventure: '🗺️', animation: '✨', crime: '🕵️',
-  fantasy: '🧙', documentary: '📽️', mystery: '🔍', war: '⚔️', history: '📜',
-  music: '🎵', family: '👨‍👩‍👧‍👦', western: '🤠', sport: '⚽',
+  action: "💥",
+  comedy: "😂",
+  drama: "🎭",
+  horror: "👻",
+  thriller: "🔪",
+  romance: "💕",
+  "sci-fi": "🚀",
+  adventure: "🗺️",
+  animation: "✨",
+  crime: "🕵️",
+  fantasy: "🧙",
+  documentary: "📽️",
+  mystery: "🔍",
+  war: "⚔️",
+  history: "📜",
+  music: "🎵",
+  family: "👨‍👩‍👧‍👦",
+  western: "🤠",
+  sport: "⚽",
 };
 
 const GENRE_GRADIENTS: Record<string, string> = {
-  action: 'from-orange-600/20 to-red-900/10',
-  comedy: 'from-yellow-500/20 to-amber-700/10',
-  drama: 'from-indigo-600/20 to-purple-900/10',
-  horror: 'from-gray-800/30 to-red-950/10',
-  thriller: 'from-slate-700/20 to-red-800/10',
-  romance: 'from-pink-500/20 to-rose-800/10',
-  'sci-fi': 'from-cyan-600/20 to-blue-900/10',
-  adventure: 'from-emerald-600/20 to-teal-800/10',
-  animation: 'from-violet-500/20 to-fuchsia-800/10',
-  crime: 'from-zinc-700/20 to-slate-900/10',
-  fantasy: 'from-purple-600/20 to-indigo-900/10',
-  documentary: 'from-stone-600/20 to-neutral-800/10',
+  action: "from-orange-600/20 to-red-900/10",
+  comedy: "from-yellow-500/20 to-amber-700/10",
+  drama: "from-indigo-600/20 to-purple-900/10",
+  horror: "from-gray-800/30 to-red-950/10",
+  thriller: "from-slate-700/20 to-red-800/10",
+  romance: "from-pink-500/20 to-rose-800/10",
+  "sci-fi": "from-cyan-600/20 to-blue-900/10",
+  adventure: "from-emerald-600/20 to-teal-800/10",
+  animation: "from-violet-500/20 to-fuchsia-800/10",
+  crime: "from-zinc-700/20 to-slate-900/10",
+  fantasy: "from-purple-600/20 to-indigo-900/10",
+  documentary: "from-stone-600/20 to-neutral-800/10",
 };
+
+// Parse imdbRatingValue safely — API returns it as a string e.g. "8.5" or "0"
+function getImdbRating(movie: CollectionMovie): number {
+  return parseFloat(String(movie.imdbRatingValue ?? "0")) || 0;
+}
 
 export default function Collections() {
   useSEO({
-    title: 'Collections',
-    description: 'Browse curated movie and TV collections by genre, mood, and more on RUNFlix',
+    title: "Collections",
+    description:
+      "Browse curated movie and TV collections by genre, mood, and more on RUNFlix",
   });
 
   const { data: trending, isLoading: tl } = useQuery<CollectionMovie[]>({
-    queryKey: ['trending'],
-    queryFn: fetchTrending,
+    queryKey: ["trending"],
+    queryFn: fetchTrending as () => Promise<CollectionMovie[]>,
     staleTime: 10 * 60 * 1000,
   });
 
   const { data: hpData, isLoading: hl } = useQuery<HomepageData>({
-    queryKey: ['homepage'],
-    queryFn: fetchHomepage,
+    queryKey: ["homepage"],
+    queryFn: fetchHomepage as () => Promise<HomepageData>,
     staleTime: 10 * 60 * 1000,
   });
 
@@ -89,11 +104,11 @@ export default function Collections() {
 
     if (hpData?.operatingList) {
       for (const section of hpData.operatingList) {
-        section.subjects?.forEach(add);
+        (section.subjects ?? []).forEach(add);
       }
     }
 
-    trending?.forEach(add);
+    (trending ?? []).forEach(add);
     return movies;
   }, [hpData, trending]);
 
@@ -101,60 +116,76 @@ export default function Collections() {
   const genreCollections = useMemo(() => {
     return GENRE_LIST.map((genre) => {
       const items = allMovies.filter((movie) =>
-        (movie.genre || '').toLowerCase().includes(genre)
+        (movie.genre || "").toLowerCase().includes(genre),
       );
       return { genre, items };
     }).filter((collection) => collection.items.length >= 4);
   }, [allMovies]);
 
   /* Curated special collections */
-  const specialCollections = useMemo<SpecialCollection[]>(() => [
-    {
-      key: 'top-rated',
-      title: '⭐ Top Rated',
-      subtitle: 'IMDb 8.0+',
-      items: [...allMovies]
-        .filter((movie) => (movie.imdbRatingValue ?? 0) >= 8)
-        .sort((a, b) => (b.imdbRatingValue ?? 0) - (a.imdbRatingValue ?? 0))
-        .slice(0, 15),
-    },
-    {
-      key: 'new-releases',
-      title: '🆕 New Releases',
-      subtitle: 'Recently added',
-      items: [...allMovies]
-        .sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || ''))
-        .slice(0, 15),
-    },
-    {
-      key: 'movies-only',
-      title: '🎬 Movies Only',
-      subtitle: 'Feature films',
-      items: allMovies.filter((movie) => movie.subjectType === 1).slice(0, 15),
-    },
-    {
-      key: 'series-only',
-      title: '📺 TV Series',
-      subtitle: 'Binge-worthy shows',
-      items: allMovies.filter((movie) => movie.subjectType === 2).slice(0, 15),
-    },
-    {
-      key: 'anime',
-      title: '🎌 Anime',
-      subtitle: 'Japanese animation',
-      items: allMovies.filter((movie) =>
-        (movie.genre || '').toLowerCase().includes('anime') ||
-        (movie.countryName || '').toLowerCase().includes('japan')
-      ).slice(0, 15),
-      link: '/anime',
-    },
-  ].filter((collection) => collection.items.length >= 3), [allMovies]);
+  const specialCollections = useMemo<SpecialCollection[]>(
+    () =>
+      [
+        {
+          key: "top-rated",
+          title: "⭐ Top Rated",
+          subtitle: "IMDb 8.0+",
+          items: [...allMovies]
+            .filter((movie) => getImdbRating(movie) >= 8)
+            .sort((a, b) => getImdbRating(b) - getImdbRating(a))
+            .slice(0, 15),
+        },
+        {
+          key: "new-releases",
+          title: "🆕 New Releases",
+          subtitle: "Recently added",
+          items: [...allMovies]
+            .sort((a, b) =>
+              (b.releaseDate || "").localeCompare(a.releaseDate || ""),
+            )
+            .slice(0, 15),
+        },
+        {
+          key: "movies-only",
+          title: "🎬 Movies Only",
+          subtitle: "Feature films",
+          items: allMovies
+            .filter((movie) => movie.subjectType === 1)
+            .slice(0, 15),
+        },
+        {
+          key: "series-only",
+          title: "📺 TV Series",
+          subtitle: "Binge-worthy shows",
+          items: allMovies
+            .filter((movie) => movie.subjectType === 2)
+            .slice(0, 15),
+        },
+        {
+          key: "anime",
+          title: "🎌 Anime",
+          subtitle: "Japanese animation",
+          items: allMovies
+            .filter(
+              (movie) =>
+                (movie.genre || "").toLowerCase().includes("anime") ||
+                (movie.countryName || "").toLowerCase().includes("japan"),
+            )
+            .slice(0, 15),
+          link: "/anime",
+        },
+      ].filter((collection) => collection.items.length >= 3),
+    [allMovies],
+  );
 
   const isLoading = tl || hl;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen">
-
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen"
+    >
       {/* ── HERO ── */}
       <div className="relative py-12 md:py-20 px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28 overflow-hidden">
         <div className="absolute inset-0 bg-linear-to-br from-violet-900/25 via-(--rf-black) to-blue-900/15" />
@@ -165,13 +196,18 @@ export default function Collections() {
               <Layers size={26} className="text-white" />
             </div>
             <div>
-              <h1 className="text-3xl md:text-5xl font-black text-white">Collections</h1>
-              <p className="text-sm text-(--rf-text-muted) mt-1">Curated lists for every mood</p>
+              <h1 className="text-3xl md:text-5xl font-black text-white">
+                Collections
+              </h1>
+              <p className="text-sm text-(--rf-text-muted) mt-1">
+                Curated lists for every mood
+              </p>
             </div>
           </div>
           {!isLoading && (
             <p className="text-sm text-(--rf-text-dim)">
-              {specialCollections.length + genreCollections.length} collections · {allMovies.length} total titles
+              {specialCollections.length + genreCollections.length} collections
+              · {allMovies.length} total titles
             </p>
           )}
         </div>
@@ -179,7 +215,9 @@ export default function Collections() {
 
       {isLoading ? (
         <div className="space-y-4 px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28">
-          {[1, 2, 3].map((i) => <MovieRowSkeleton key={i} />)}
+          {[1, 2, 3].map((i) => (
+            <MovieRowSkeleton key={i} />
+          ))}
         </div>
       ) : (
         <div className="space-y-2 pb-12">
@@ -189,10 +227,19 @@ export default function Collections() {
               key={collection.key}
               title={collection.title}
               subtitle={collection.subtitle}
-              onViewAll={collection.link ? () => { window.location.href = collection.link!; } : undefined}
+              onViewAll={
+                collection.link
+                  ? () => {
+                      window.location.href = collection.link!;
+                    }
+                  : undefined
+              }
             >
               {collection.items.map((movie, idx) => (
-                <div key={`${collection.key}-${movie.subjectId ?? idx}`} className="snap-start">
+                <div
+                  key={`${collection.key}-${movie.subjectId ?? idx}`}
+                  className="snap-start"
+                >
                   <MovieCard movie={movie} index={idx} size="md" />
                 </div>
               ))}
@@ -203,7 +250,10 @@ export default function Collections() {
           <div className="max-w-400 mx-auto px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28 py-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-white">Browse by Genre</h2>
-              <Link to="/explore" className="text-xs text-(--rf-red) flex items-center gap-0.5 hover:gap-1 transition-all">
+              <Link
+                to="/explore"
+                className="text-xs text-(--rf-red) flex items-center gap-0.5 hover:gap-1 transition-all"
+              >
                 See All <ChevronRight size={13} />
               </Link>
             </div>
@@ -212,14 +262,18 @@ export default function Collections() {
                 <Link
                   key={genre}
                   to={`/genre/${genre}`}
-                  className={`group relative h-20 md:h-24 rounded-2xl overflow-hidden bg-linear-to-br ${GENRE_GRADIENTS[genre] || 'from-(--rf-surface-2) to-(--rf-surface-3)'} border border-white/5 hover:border-white/10 transition-all duration-300`}
+                  className={`group relative h-20 md:h-24 rounded-2xl overflow-hidden bg-linear-to-br ${GENRE_GRADIENTS[genre] || "from-(--rf-surface-2) to-(--rf-surface-3)"} border border-white/5 hover:border-white/10 transition-all duration-300`}
                 >
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 z-10">
                     <span className="text-2xl group-hover:scale-110 transition-transform duration-300">
-                      {GENRE_EMOJIS[genre] || '🎬'}
+                      {GENRE_EMOJIS[genre] || "🎬"}
                     </span>
-                    <span className="text-white font-bold text-xs capitalize">{genre}</span>
-                    <span className="text-(--rf-text-dim) text-[9px]">{items.length} titles</span>
+                    <span className="text-white font-bold text-xs capitalize">
+                      {genre}
+                    </span>
+                    <span className="text-(--rf-text-dim) text-[9px]">
+                      {items.length} titles
+                    </span>
                   </div>
                 </Link>
               ))}
@@ -230,11 +284,16 @@ export default function Collections() {
           {genreCollections.slice(0, 8).map(({ genre, items }) => (
             <MovieRow
               key={genre}
-              title={`${GENRE_EMOJIS[genre] || '🎬'} ${genre.charAt(0).toUpperCase() + genre.slice(1)}`}
-              onViewAll={() => { window.location.href = `/genre/${genre}`; }}
+              title={`${GENRE_EMOJIS[genre] || "🎬"} ${genre.charAt(0).toUpperCase() + genre.slice(1)}`}
+              onViewAll={() => {
+                window.location.href = `/genre/${genre}`;
+              }}
             >
               {items.slice(0, 15).map((movie, idx) => (
-                <div key={`genre-${genre}-${movie.subjectId ?? idx}`} className="snap-start">
+                <div
+                  key={`genre-${genre}-${movie.subjectId ?? idx}`}
+                  className="snap-start"
+                >
                   <MovieCard movie={movie} index={idx} size="md" />
                 </div>
               ))}

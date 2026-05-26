@@ -114,7 +114,7 @@ export default function AISearchPanel({ onSearchTitle }: AISearchPanelProps) {
           </div>
           <div className="text-left flex-1">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              RUN AI Search
+               LENZ AI Search
               <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[8px] font-black tracking-wider uppercase">AI</span>
             </h3>
             <p className="text-xs text-[var(--rf-text-dim)] mt-0.5">
@@ -140,7 +140,7 @@ export default function AISearchPanel({ onSearchTitle }: AISearchPanelProps) {
             <Brain size={16} className="text-purple-400" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">RUN AI</h3>
+            <h3 className="text-sm font-bold text-white"> LENZ AI</h3>
             <p className="text-[10px] text-[var(--rf-text-dim)]">Powered by Gemini</p>
           </div>
         </div>

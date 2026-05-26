@@ -123,11 +123,22 @@ export interface SearchItem {
   subjectType: number;
   title?: string;
   name?: string;
-  cover?: string;
+  cover?: {
+    url?: string;
+    thumbnail?: string;
+    [key: string]: any;
+  };
+  thumbnail?: string;
   rating?: number;
+  imdbRatingValue?: string;
   releaseDate?: string;
+  description?: string;
+  genre?: string;
+  detailPath?: string;
+  hasResource?: boolean;
   [key: string]: any;
 }
+
 
 export interface SearchResponse {
   items: SearchItem[];
@@ -263,18 +274,17 @@ export const fetchSearch = async (
  * Movie / TV Info
  */
 
-export const fetchInfo = async (
-  id: string
-) => {
-  if (!id) {
-    throw new Error('Missing movie ID');
+export const fetchInfo = async (id: string) => {
+  if (!id) throw new Error('Missing movie ID');
+
+  const { data } = await api.get(`/info/${id}`);
+  const results = data?.results;
+
+  if (!results || results.code === 400) {
+    throw new Error(results?.reason || 'Content not found');
   }
 
-  const { data } = await api.get(
-    `/info/${id}`
-  );
-
-  return safeObject(data?.results, {});
+  return safeObject(results, {});
 };
 
 /**

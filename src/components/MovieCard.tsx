@@ -24,6 +24,35 @@ export const MovieCard = memo(({ movie, index = 0, size = 'md' }: MovieCardProps
   const year = formatYear(movie.releaseDate);
   const isSeries = movie.subjectType === 2;
 
+  const currentDate = new Date();
+
+  const releaseDate = movie.releaseDate ? new Date(movie.releaseDate) : null;
+
+  // Days since release/upload
+  const daysSinceRelease = releaseDate
+    ? Math.floor(
+        (currentDate.getTime() - releaseDate.getTime()) / (1000 * 60 * 60 * 24),
+      )
+    : null;
+
+  // Recently Added = under 30 days
+  const isRecentlyAdded = daysSinceRelease !== null && daysSinceRelease <= 30;
+
+  // Trending = high rating
+  const isTrending = Number(movie.imdbRatingValue || 0) >= 8.5;
+
+  // New Season = TV series released recently
+  const hasNewSeason =
+    isSeries && daysSinceRelease !== null && daysSinceRelease <= 45;
+
+  // New Episode = latest episode exists
+  const hasNewEpisode =
+    isSeries &&
+    movie.episodeCount &&
+    movie.episodeCount > 1 &&
+    daysSinceRelease !== null &&
+    daysSinceRelease <= 7;
+
   // Retrieve play progress dynamically from localStorage
   const getProgress = useProgressStore((s) => s.getProgress);
   const prog = id ? getProgress(id) : null;
@@ -83,13 +112,17 @@ export const MovieCard = memo(({ movie, index = 0, size = 'md' }: MovieCardProps
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3), ease: [0.4, 0, 0.2, 1] }}
+      transition={{
+        duration: 0.4,
+        delay: Math.min(index * 0.05, 0.3),
+        ease: [0.4, 0, 0.2, 1],
+      }}
     >
       <Link
         to={buildMoviePath(title, id)}
         className={cn(
           "group relative block movie-card rounded-2xl overflow-hidden bg-white/[0.01] border border-white/[0.04] transition-all duration-500 hover:scale-[1.03] hover:border-[var(--rf-red)]/35 hover:shadow-[0_12px_30px_rgba(0,0,0,0.85)] hover:shadow-[var(--rf-red)]/5",
-          sizeClasses[size]
+          sizeClasses[size],
         )}
         aria-label={`View ${title}`}
       >
@@ -112,18 +145,53 @@ export const MovieCard = memo(({ movie, index = 0, size = 'md' }: MovieCardProps
               "absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-xl flex items-center justify-center backdrop-blur-xl border transition-all duration-300 active:scale-90",
               isInWatchlist
                 ? "bg-[var(--rf-red)] border-none text-white shadow-[0_0_12px_rgba(225,29,72,0.55)]"
-                : "bg-black/40 border-white/10 hover:bg-black/60 hover:border-white/20 text-white/80"
+                : "bg-black/40 border-white/10 hover:bg-black/60 hover:border-white/20 text-white/80",
             )}
             title={isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
           >
-            {isInWatchlist ? <Check size={11} strokeWidth={3} /> : <Bookmark size={11} />}
+            {isInWatchlist ? (
+              <Check size={11} strokeWidth={3} />
+            ) : (
+              <Bookmark size={11} />
+            )}
           </button>
 
           {/* Type Tag Left-Floating */}
           <span className="absolute top-2.5 left-2.5 z-10 badge glass text-[8px] uppercase tracking-wider py-1 px-2 border border-white/5 flex items-center gap-1 font-bold">
-            {isSeries ? <Tv size={8} className="text-[var(--rf-red)]" /> : <Film size={8} className="text-[var(--rf-red)]" />}
-            {isSeries ? 'TV' : 'Movie'}
+            {isSeries ? (
+              <Tv size={8} className="text-[var(--rf-red)]" />
+            ) : (
+              <Film size={8} className="text-[var(--rf-red)]" />
+            )}
+            {isSeries ? "TV" : "Movie"}
           </span>
+
+          {/* Smart Netflix Style Badges */}
+          <div className="absolute top-12 left-2.5 z-10 flex flex-col gap-1">
+            {isRecentlyAdded && (
+              <span className="px-2 py-1 rounded-md bg-emerald-600 text-[8px] font-black uppercase tracking-wider text-white shadow-lg">
+                RECENT
+              </span>
+            )}
+
+            {hasNewSeason && (
+              <span className="px-2 py-1 rounded-md bg-fuchsia-600 text-[8px] font-black uppercase tracking-wider text-white shadow-lg">
+                NEW SEASON
+              </span>
+            )}
+
+            {hasNewEpisode && (
+              <span className="px-2 py-1 rounded-md bg-blue-600 text-[8px] font-black uppercase tracking-wider text-white shadow-lg">
+                NEW EP
+              </span>
+            )}
+
+            {isTrending && (
+              <span className="px-2 py-1 rounded-md bg-yellow-400 text-[8px] font-black uppercase tracking-wider text-black shadow-lg">
+                TRENDING
+              </span>
+            )}
+          </div>
 
           {/* Play Button Overlay (Fades In) */}
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-400 z-[3]">
@@ -150,11 +218,14 @@ export const MovieCard = memo(({ movie, index = 0, size = 'md' }: MovieCardProps
           </h4>
           <div className="flex items-center justify-between mt-1">
             <span className="text-[9px] text-[var(--rf-text-muted)] font-semibold uppercase tracking-wider">
-              {year || 'N/A'}
+              {year || "N/A"}
             </span>
             {rating && (
               <div className="flex items-center gap-1">
-                <Star size={8} className="fill-[var(--rf-gold)] text-[var(--rf-gold)]" />
+                <Star
+                  size={8}
+                  className="fill-[var(--rf-gold)] text-[var(--rf-gold)]"
+                />
                 <span className="text-[9px] font-black text-white/90">
                   {formatRating(rating)}
                 </span>
@@ -177,6 +248,35 @@ export const MovieCardGrid = memo(({ movie, index = 0 }: MovieCardProps) => {
   const rating = movie.imdbRatingValue;
   const year = formatYear(movie.releaseDate);
   const isSeries = movie.subjectType === 2;
+
+  const currentDate = new Date();
+
+  const releaseDate = movie.releaseDate ? new Date(movie.releaseDate) : null;
+
+  // Days since release/upload
+  const daysSinceRelease = releaseDate
+    ? Math.floor(
+        (currentDate.getTime() - releaseDate.getTime()) / (1000 * 60 * 60 * 24),
+      )
+    : null;
+
+  // Recently Added = under 30 days
+  const isRecentlyAdded = daysSinceRelease !== null && daysSinceRelease <= 30;
+
+  // Trending = high rating
+  const isTrending = Number(movie.imdbRatingValue || 0) >= 8.5;
+
+  // New Season = TV series released recently
+  const hasNewSeason =
+    isSeries && daysSinceRelease !== null && daysSinceRelease <= 45;
+
+  // New Episode = latest episode exists
+  const hasNewEpisode =
+    isSeries &&
+    movie.episodeCount &&
+    movie.episodeCount > 1 &&
+    daysSinceRelease !== null &&
+    daysSinceRelease <= 7;
 
   // Retrieve play progress dynamically from localStorage
   const getProgress = useProgressStore((s) => s.getProgress);
@@ -231,7 +331,11 @@ export const MovieCardGrid = memo(({ movie, index = 0 }: MovieCardProps) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.4, 0, 0.2, 1] }}
+      transition={{
+        duration: 0.35,
+        delay: Math.min(index * 0.04, 0.4),
+        ease: [0.4, 0, 0.2, 1],
+      }}
     >
       <Link
         to={buildMoviePath(title, id)}
@@ -257,18 +361,53 @@ export const MovieCardGrid = memo(({ movie, index = 0 }: MovieCardProps) => {
               "absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-xl flex items-center justify-center backdrop-blur-xl border transition-all duration-300 active:scale-90",
               isInWatchlist
                 ? "bg-[var(--rf-red)] border-none text-white shadow-[0_0_12px_rgba(225,29,72,0.55)]"
-                : "bg-black/40 border-white/10 hover:bg-black/60 hover:border-white/20 text-white/80"
+                : "bg-black/40 border-white/10 hover:bg-black/60 hover:border-white/20 text-white/80",
             )}
             title={isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
           >
-            {isInWatchlist ? <Check size={11} strokeWidth={3} /> : <Bookmark size={11} />}
+            {isInWatchlist ? (
+              <Check size={11} strokeWidth={3} />
+            ) : (
+              <Bookmark size={11} />
+            )}
           </button>
 
           {/* Type Tag Left-Floating */}
           <span className="absolute top-2.5 left-2.5 z-10 badge glass text-[8px] uppercase tracking-wider py-1 px-2 border border-white/5 flex items-center gap-1 font-bold">
-            {isSeries ? <Tv size={8} className="text-[var(--rf-red)]" /> : <Film size={8} className="text-[var(--rf-red)]" />}
-            {isSeries ? 'TV' : 'Movie'}
+            {isSeries ? (
+              <Tv size={8} className="text-[var(--rf-red)]" />
+            ) : (
+              <Film size={8} className="text-[var(--rf-red)]" />
+            )}
+            {isSeries ? "TV" : "Movie"}
           </span>
+
+          {/* Smart Netflix Style Badges */}
+          <div className="absolute top-12 left-2.5 z-10 flex flex-col gap-1">
+            {isRecentlyAdded && (
+              <span className="px-2 py-1 rounded-md bg-emerald-600 text-[8px] font-black uppercase tracking-wider text-white shadow-lg">
+                RECENT
+              </span>
+            )}
+
+            {hasNewSeason && (
+              <span className="px-2 py-1 rounded-md bg-fuchsia-600 text-[8px] font-black uppercase tracking-wider text-white shadow-lg">
+                NEW SEASON
+              </span>
+            )}
+
+            {hasNewEpisode && (
+              <span className="px-2 py-1 rounded-md bg-blue-600 text-[8px] font-black uppercase tracking-wider text-white shadow-lg">
+                NEW EP
+              </span>
+            )}
+
+            {isTrending && (
+              <span className="px-2 py-1 rounded-md bg-yellow-400 text-[8px] font-black uppercase tracking-wider text-black shadow-lg">
+                TRENDING
+              </span>
+            )}
+          </div>
 
           {/* Play Button Overlay (Fades In) */}
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-400 z-[3]">
@@ -295,11 +434,14 @@ export const MovieCardGrid = memo(({ movie, index = 0 }: MovieCardProps) => {
           </h4>
           <div className="flex items-center justify-between mt-1">
             <span className="text-[9px] text-[var(--rf-text-muted)] font-semibold uppercase tracking-wider">
-              {year || 'N/A'}
+              {year || "N/A"}
             </span>
             {rating && (
               <div className="flex items-center gap-1">
-                <Star size={8} className="fill-[var(--rf-gold)] text-[var(--rf-gold)]" />
+                <Star
+                  size={8}
+                  className="fill-[var(--rf-gold)] text-[var(--rf-gold)]"
+                />
                 <span className="text-[9px] font-black text-white/90">
                   {formatRating(rating)}
                 </span>

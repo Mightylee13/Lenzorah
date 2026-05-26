@@ -1,8 +1,23 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
-export default function Footer() {
+interface FooterProps {
+  sidebarOpen?: boolean;
+}
+
+export default function Footer({
+  sidebarOpen = false,
+}: FooterProps) {
+  const { t } = useTranslation();
+
   return (
-    <footer className="relative border-t border-[var(--rf-border)] mt-auto">
+    <footer
+      className={`
+        relative mt-auto border-t border-[var(--rf-border)]
+        transition-all duration-300 ease-in-out
+        lg:${sidebarOpen ? "ml-[280px]" : "ml-0"}
+      `}
+    >
       {/* Ambient glow */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-[var(--rf-red)]/5 blur-[100px] rounded-full pointer-events-none" />
 
@@ -17,17 +32,19 @@ export default function Footer() {
                 className="h-10 w-auto object-contain"
               />
             </Link>
+
             <p className="text-xs text-[var(--rf-text-dim)] leading-relaxed max-w-[240px]">
-              Your premium destination for movies and TV series downloads.
-              Explore, discover, and download in stunning quality.
+              Your destination for movies and TV series downloads.
+              Explore, discover, and stream in stunning quality.
             </p>
           </div>
 
           {/* Navigation */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--rf-text-muted)] mb-3">
-              Navigate
+              {t("Navigate")}
             </h4>
+
             <div className="space-y-2">
               {["Home", "Explore", "Anime", "Search", "Downloads"].map(
                 (link) => (
@@ -46,8 +63,9 @@ export default function Footer() {
           {/* Categories */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--rf-text-muted)] mb-3">
-              Categories
+              {t("Categories")}
             </h4>
+
             <div className="space-y-2">
               <Link
                 to="/explore"
@@ -55,18 +73,21 @@ export default function Footer() {
               >
                 Movies
               </Link>
+
               <Link
                 to="/explore"
                 className="block text-sm text-[var(--rf-text-dim)] hover:text-white transition-colors"
               >
-                TV Series
+                {t("Series")}
               </Link>
+
               <Link
                 to="/trending"
                 className="block text-sm text-[var(--rf-text-dim)] hover:text-white transition-colors"
               >
                 Trending
               </Link>
+
               <Link
                 to="/collections"
                 className="block text-sm text-[var(--rf-text-dim)] hover:text-white transition-colors"
@@ -79,32 +100,36 @@ export default function Footer() {
           {/* Support */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--rf-text-muted)] mb-3">
-              Support
+              {t("Support")}
             </h4>
+
             <div className="space-y-2">
               <Link
                 to="/contact"
                 className="block text-sm text-[var(--rf-text-dim)] hover:text-white transition-colors"
               >
-                Contact Us
+                {t("ContactUs")}
               </Link>
+
               <Link
                 to="/dmca"
                 className="block text-sm text-[var(--rf-text-dim)] hover:text-white transition-colors"
               >
                 DMCA
               </Link>
+
               <Link
                 to="/terms"
                 className="block text-sm text-[var(--rf-text-dim)] hover:text-white transition-colors"
               >
-                Terms of Service
+                {t("Terms")}
               </Link>
+
               <Link
                 to="/privacy"
                 className="block text-sm text-[var(--rf-text-dim)] hover:text-white transition-colors"
               >
-                Privacy Policy
+                {t("Privacy")}
               </Link>
             </div>
           </div>
@@ -119,31 +144,36 @@ export default function Footer() {
               className="w-4 h-4 object-contain opacity-50"
               aria-hidden="true"
             />
-            © {new Date().getFullYear()} Lenzorah Entertainment. All rights
-            reserved.
+
+            © {new Date().getFullYear()} Lenzorah Entertainment.
+            All rights reserved.
           </p>
+
           <div className="flex items-center gap-4">
             <Link
               to="/privacy"
-              className="text-[11px] text-[var(--rf-text-dim)] hover:text-white cursor-pointer transition-colors"
+              className="text-[11px] text-[var(--rf-text-dim)] hover:text-white transition-colors"
             >
               Privacy
             </Link>
+
             <Link
               to="/terms"
-              className="text-[11px] text-[var(--rf-text-dim)] hover:text-white cursor-pointer transition-colors"
+              className="text-[11px] text-[var(--rf-text-dim)] hover:text-white transition-colors"
             >
               Terms
             </Link>
+
             <Link
               to="/dmca"
-              className="text-[11px] text-[var(--rf-text-dim)] hover:text-white cursor-pointer transition-colors"
+              className="text-[11px] text-[var(--rf-text-dim)] hover:text-white transition-colors"
             >
               DMCA
             </Link>
+
             <Link
               to="/contact"
-              className="text-[11px] text-[var(--rf-text-dim)] hover:text-white cursor-pointer transition-colors"
+              className="text-[11px] text-[var(--rf-text-dim)] hover:text-white transition-colors"
             >
               Contact
             </Link>
