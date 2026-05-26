@@ -3,8 +3,7 @@
  * Powered by OpenRouter
  */
 
-const OPENROUTER_API_KEY =
-  "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";
+const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
