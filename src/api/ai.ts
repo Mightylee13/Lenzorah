@@ -70,7 +70,7 @@ async function callOpenRouter(
       const res = await fetch(OPENROUTER_URL, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          Authorization: `Bearer ${API_KEY}`,
           "Content-Type": "application/json",
           "HTTP-Referer": window.location.origin,
           "X-Title": " Lenzorah Entertainment AI",
