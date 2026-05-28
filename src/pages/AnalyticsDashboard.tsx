@@ -30,6 +30,7 @@ interface Summary {
     viewsToday: number;
     viewsWeek: number;
     viewsMonth: number;
+    uniqueVisitors: number;
   };
   topPages: { _id: string; count: number; title: string }[];
   topMovies: {
@@ -201,8 +202,8 @@ export default function AnalyticsDashboard({ adminPin }: Props) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               {
-                label: "Total Views",
-                value: data.totals.totalViews,
+                label: "Unique Devices",
+                value: data.totals.uniqueVisitors ?? 0,
                 icon: <Eye size={16} />,
                 color: "white",
               },

@@ -54,8 +54,8 @@ import { useMaintenanceStore } from "../stores/useMaintenanceStore";
 import { cn } from "../utils/cn";
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const CORRECT_PIN = import.meta.env.VITE_ADMIN_PIN || "2009";
-const PIN_LENGTH = 6;
+const CORRECT_PIN = import.meta.env.VITE_ADMIN_PIN || "";
+const PIN_LENGTH = 4;
 const B = "#4490ff";
 const BG = "#030305";
 
@@ -79,45 +79,90 @@ function AdminMobileNav({
   onLogout: () => void;
 }) {
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-[200] md:hidden"
-      style={{
-        background: "rgba(5,5,12,0.92)",
-        backdropFilter: "blur(20px)",
-        borderTop: "1px solid rgba(68,144,255,0.1)",
-      }}
+    <div
+      className="fixed bottom-5 left-1/2 z-[200] md:hidden"
+      style={{ transform: "translateX(-50%)" }}
     >
-      <div className="flex items-center px-2 py-2 gap-1">
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="flex items-center gap-1 px-2 py-2 rounded-[32px]"
+        style={{
+          background: "rgba(8,8,18,0.85)",
+          backdropFilter: "blur(28px)",
+          WebkitBackdropFilter: "blur(28px)",
+          border: "1px solid rgba(68,144,255,0.15)",
+          boxShadow:
+            "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(68,144,255,0.08)",
+        }}
+      >
         {NAV_ITEMS.map(({ key, icon: Icon, label }) => (
-          <button
+          <motion.button
             key={key}
             onClick={() => onChange(key)}
-            className="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl transition-all"
+            whileTap={{ scale: 0.88 }}
+            className="relative flex flex-col items-center gap-1 px-3.5 py-2 rounded-[24px] transition-all duration-200"
             style={
               active === key
-                ? { background: "rgba(68,144,255,0.12)", color: B }
-                : { color: "rgba(255,255,255,0.35)" }
+                ? {
+                    background:
+                      "linear-gradient(135deg, rgba(68,144,255,0.25), rgba(68,144,255,0.1))",
+                    border: "1px solid rgba(68,144,255,0.3)",
+                    color: B,
+                    boxShadow: `0 4px 16px rgba(68,144,255,0.2)`,
+                  }
+                : {
+                    color: "rgba(255,255,255,0.3)",
+                    border: "1px solid transparent",
+                  }
             }
           >
-            <Icon size={18} strokeWidth={active === key ? 2.2 : 1.6} />
-            <span className="text-[8px] font-black uppercase tracking-wider">
+            {active === key && (
+              <motion.div
+                layoutId="admin-nav-indicator"
+                className="absolute inset-0 rounded-[24px]"
+                style={{ background: "rgba(68,144,255,0.08)" }}
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              />
+            )}
+            <Icon
+              size={17}
+              strokeWidth={active === key ? 2.2 : 1.6}
+              className="relative z-10"
+              style={
+                active === key ? { filter: `drop-shadow(0 0 6px ${B}99)` } : {}
+              }
+            />
+            <span className="text-[7px] font-black uppercase tracking-wider relative z-10 leading-none">
               {label}
             </span>
-          </button>
+          </motion.button>
         ))}
-        <button
+
+        {/* Divider */}
+        <div
+          className="w-px h-8 mx-1 rounded-full"
+          style={{ background: "rgba(255,255,255,0.06)" }}
+        />
+
+        {/* Exit button */}
+        <motion.button
           onClick={onLogout}
-          className="flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all"
-          style={{ color: "rgba(248,113,113,0.7)" }}
+          whileTap={{ scale: 0.88 }}
+          className="flex flex-col items-center gap-1 px-3 py-2 rounded-[24px] transition-all"
+          style={{
+            color: "rgba(248,113,113,0.6)",
+            border: "1px solid transparent",
+          }}
+          whileHover={{ color: "#f87171" }}
         >
-          <LogOut size={18} strokeWidth={1.6} />
-          <span className="text-[8px] font-black uppercase tracking-wider">
+          <LogOut size={17} strokeWidth={1.6} />
+          <span className="text-[7px] font-black uppercase tracking-wider leading-none">
             Exit
           </span>
-        </button>
-      </div>
-      <div className="h-safe-bottom" />
-    </nav>
+        </motion.button>
+      </motion.div>
+    </div>
   );
 }
 
@@ -389,133 +434,211 @@ export default function Daratech() {
     const pad = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
     return (
       <div
-        className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+        className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden select-none"
         style={{ background: BG }}
       >
-        {/* Glows */}
-        <div
-          className="absolute -top-1/4 -left-1/4 w-[70vw] h-[70vw] rounded-full blur-[150px] pointer-events-none"
-          style={{ background: "rgba(68,144,255,0.04)" }}
-        />
-        <div
-          className="absolute -bottom-1/4 -right-1/4 w-[70vw] h-[70vw] rounded-full blur-[150px] pointer-events-none"
-          style={{ background: "rgba(68,144,255,0.03)" }}
-        />
+        {/* Cinematic background layers */}
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Deep blue radial glow */}
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[160px]"
+            style={{ background: "rgba(68,144,255,0.07)" }}
+          />
+          {/* Top left accent */}
+          <div
+            className="absolute -top-20 -left-20 w-80 h-80 rounded-full blur-[120px]"
+            style={{ background: "rgba(120,80,255,0.05)" }}
+          />
+          {/* Bottom right accent */}
+          <div
+            className="absolute -bottom-20 -right-20 w-80 h-80 rounded-full blur-[120px]"
+            style={{ background: "rgba(68,144,255,0.05)" }}
+          />
+          {/* Subtle grid */}
+          <div
+            className="absolute inset-0 opacity-[0.012]"
+            style={{
+              backgroundImage: `linear-gradient(rgba(68,144,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(68,144,255,1) 1px, transparent 1px)`,
+              backgroundSize: "60px 60px",
+            }}
+          />
+        </div>
 
-        <div className="w-full max-w-xs flex flex-col items-center gap-8 relative z-10">
-          {/* Logo */}
-          <div className="flex flex-col items-center gap-3">
+        {/* Top brand strip */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-2"
+        >
+          <div
+            className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{
+              background: "rgba(68,144,255,0.1)",
+              border: "1px solid rgba(68,144,255,0.2)",
+            }}
+          >
+            <Brain size={14} style={{ color: B }} />
+          </div>
+          <span className="text-xs font-black tracking-[0.3em] uppercase text-white/50">
+            LENZORAH
+          </span>
+        </motion.div>
+
+        {/* Main card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.94, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="relative w-full max-w-[320px] mx-auto px-6 flex flex-col items-center gap-7"
+        >
+          {/* Lock icon with glow ring */}
+          <div className="relative flex items-center justify-center">
+            <div
+              className="absolute w-24 h-24 rounded-full blur-2xl"
+              style={{ background: `${B}22` }}
+            />
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-16 h-16 rounded-[20px] flex items-center justify-center shadow-2xl"
+              animate={{
+                boxShadow: isLockedOut
+                  ? [
+                      "0 0 0 0 rgba(239,68,68,0)",
+                      "0 0 0 12px rgba(239,68,68,0.1)",
+                      "0 0 0 0 rgba(239,68,68,0)",
+                    ]
+                  : [`0 0 0 0 ${B}00`, `0 0 0 12px ${B}15`, `0 0 0 0 ${B}00`],
+              }}
+              transition={{ repeat: Infinity, duration: 2.5 }}
+              className="w-16 h-16 rounded-2xl flex items-center justify-center relative z-10"
               style={{
-                background: "rgba(68,144,255,0.1)",
-                border: "1px solid rgba(68,144,255,0.2)",
+                background: isLockedOut
+                  ? "rgba(239,68,68,0.08)"
+                  : "rgba(68,144,255,0.08)",
+                border: `1px solid ${isLockedOut ? "rgba(239,68,68,0.25)" : "rgba(68,144,255,0.25)"}`,
               }}
             >
-              <Lock size={28} style={{ color: B }} />
+              <Lock
+                size={26}
+                style={{ color: isLockedOut ? "#f87171" : B }}
+                className={isLockedOut ? "" : ""}
+              />
             </motion.div>
-            <div className="text-center">
-              <h1 className="text-lg font-black tracking-[0.3em] text-white uppercase">
-                LENZO CONTROL
-              </h1>
-              <p
-                className="text-[9px] uppercase tracking-widest mt-0.5"
-                style={{ color: "rgba(255,255,255,0.3)" }}
-              >
-                Admin Access Required
-              </p>
-            </div>
+          </div>
+
+          {/* Title */}
+          <div className="text-center space-y-1">
+            <h1 className="text-xl font-black tracking-[0.25em] uppercase text-white">
+              Admin Access
+            </h1>
+            <p
+              className="text-[10px] uppercase tracking-widest"
+              style={{ color: "rgba(255,255,255,0.3)" }}
+            >
+              {isLockedOut
+                ? `Locked · Try again in ${remainingCooldown}s`
+                : "Enter your PIN to continue"}
+            </p>
           </div>
 
           {/* PIN dots */}
           <motion.div
-            animate={pinShake ? { x: [-8, 8, -6, 6, -4, 4, 0] } : { x: 0 }}
-            transition={{ duration: 0.4 }}
-            className="flex items-center gap-5"
+            animate={pinShake ? { x: [-10, 10, -8, 8, -5, 5, 0] } : { x: 0 }}
+            transition={{ duration: 0.45 }}
+            className="flex items-center gap-4"
           >
             {Array.from({ length: PIN_LENGTH }).map((_, i) => {
               const filled = i < pinDigits.length;
+              const isNext = i === pinDigits.length;
               return (
                 <motion.div
                   key={i}
-                  animate={{ scale: filled ? 1.25 : 1 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                  className="w-3.5 h-3.5 rounded-full transition-colors duration-150"
-                  style={{
+                  animate={{
+                    scale: filled ? 1.3 : isNext ? 1.05 : 1,
                     background: filled ? B : "transparent",
-                    border: `2px solid ${filled ? B : "rgba(255,255,255,0.2)"}`,
-                    boxShadow: filled ? `0 0 14px ${B}88` : "none",
+                  }}
+                  transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                  className="w-3.5 h-3.5 rounded-full"
+                  style={{
+                    border: `2px solid ${filled ? B : isNext ? "rgba(68,144,255,0.5)" : "rgba(255,255,255,0.15)"}`,
+                    boxShadow: filled
+                      ? `0 0 16px ${B}88, 0 0 6px ${B}`
+                      : "none",
                   }}
                 />
               );
             })}
           </motion.div>
 
-          {/* Lockout */}
-          {isLockedOut && (
+          {/* Numpad */}
+          <div className="grid grid-cols-3 gap-2.5 w-full">
+            {pad.map((d, i) => {
+              if (d === "") return <div key={i} />;
+              const isBack = d === "⌫";
+              const isDisabled = isLockedOut;
+              return (
+                <motion.button
+                  key={i}
+                  whileTap={{ scale: 0.84 }}
+                  onClick={() => (isBack ? handleBackspace() : handleDigit(d))}
+                  disabled={isDisabled}
+                  className="h-[58px] rounded-2xl font-black text-lg transition-colors disabled:opacity-30 select-none relative overflow-hidden group"
+                  style={{
+                    background: isBack
+                      ? "rgba(239,68,68,0.07)"
+                      : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${isBack ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.07)"}`,
+                    color: isBack ? "#f87171" : "white",
+                  }}
+                >
+                  {/* Tap shimmer */}
+                  <span
+                    className="absolute inset-0 rounded-2xl opacity-0 group-active:opacity-100 transition-opacity"
+                    style={{
+                      background: isBack ? "rgba(239,68,68,0.1)" : `${B}15`,
+                    }}
+                  />
+                  <span className="relative z-10">
+                    {isBack ? <Delete size={18} className="mx-auto" /> : d}
+                  </span>
+                </motion.button>
+              );
+            })}
+          </div>
+
+          {/* Attempt indicator dots */}
+          {failedAttempts > 0 && !isLockedOut && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="w-full rounded-2xl p-4 text-center"
-              style={{
-                background: "rgba(239,68,68,0.07)",
-                border: "1px solid rgba(239,68,68,0.2)",
-              }}
+              className="flex items-center gap-1.5"
             >
-              <AlertCircle size={20} className="mx-auto mb-2 text-red-400" />
-              <p className="text-[10px] font-black uppercase text-red-400 tracking-wider">
-                Locked
-              </p>
-              <p
-                className="text-[10px] mt-1"
-                style={{ color: "rgba(255,255,255,0.35)" }}
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full transition-colors"
+                  style={{
+                    background:
+                      i < failedAttempts ? "#f87171" : "rgba(255,255,255,0.1)",
+                  }}
+                />
+              ))}
+              <span
+                className="text-[9px] ml-1 font-bold"
+                style={{ color: "rgba(248,113,113,0.7)" }}
               >
-                Try again in{" "}
-                <span className="text-red-400 font-black">
-                  {remainingCooldown}s
-                </span>
-              </p>
+                {5 - failedAttempts} attempts left
+              </span>
             </motion.div>
           )}
 
-          {/* Numpad */}
-          {!isLockedOut && (
-            <div className="grid grid-cols-3 gap-3 w-full">
-              {pad.map((d, i) => {
-                if (d === "") return <div key={i} />;
-                const isBack = d === "⌫";
-                return (
-                  <motion.button
-                    key={i}
-                    whileTap={{ scale: 0.88 }}
-                    onClick={() =>
-                      isBack ? handleBackspace() : handleDigit(d)
-                    }
-                    className="h-16 rounded-2xl font-black text-lg transition-colors select-none"
-                    style={{
-                      background: isBack
-                        ? "rgba(239,68,68,0.08)"
-                        : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${isBack ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.07)"}`,
-                      color: isBack ? "#f87171" : "white",
-                    }}
-                  >
-                    {isBack ? <Delete size={18} className="mx-auto" /> : d}
-                  </motion.button>
-                );
-              })}
-            </div>
-          )}
-
+          {/* Security note */}
           <p
-            className="text-[9px] uppercase tracking-widest"
-            style={{ color: "rgba(255,255,255,0.15)" }}
+            className="text-[8px] uppercase tracking-widest text-center"
+            style={{ color: "rgba(255,255,255,0.12)" }}
           >
             Secured · Unauthorized access is logged
           </p>
-        </div>
+        </motion.div>
       </div>
     );
   }
