@@ -1,36 +1,43 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useMovieInfo, useMovieSources } from './hooks/useMovieQueries';
-import { useBatchDownloads } from './hooks/useBatchDownloads';
-import { MovieHero } from './components/MovieHero';
-import { CastCarousel } from './components/CastCarousel';
-import AITrivia from '../../components/AITrivia';
-import { SimilarMovies } from './components/SimilarMovies';
-import { DownloadModal } from './components/DownloadModal';
-import { DetailSkeleton } from '../../components/ui/Skeleton';
-import { extractIdFromSlug } from '../../utils/slug';
-import { useRecentlyViewedStore } from '../../stores/useRecentlyViewedStore';
-import { useProgressStore } from '../../stores/useProgressStore';
-import { useSEO } from '../../hooks/useSEO';
-import { motion, AnimatePresence } from 'motion/react';
-import { AlertCircle, ChevronLeft, ChevronDown, Play } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useMovieInfo, useMovieSources } from "./hooks/useMovieQueries";
+import { useBatchDownloads } from "./hooks/useBatchDownloads";
+import { MovieHero } from "./components/MovieHero";
+import { CastCarousel } from "./components/CastCarousel";
+import AITrivia from "../../components/AITrivia";
+import { SimilarMovies } from "./components/SimilarMovies";
+import { DownloadModal } from "./components/DownloadModal";
+import { DetailSkeleton } from "../../components/ui/Skeleton";
+import { extractIdFromSlug } from "../../utils/slug";
+import { useRecentlyViewedStore } from "../../stores/useRecentlyViewedStore";
+import { useProgressStore } from "../../stores/useProgressStore";
+import { useSEO } from "../../hooks/useSEO";
+import { motion, AnimatePresence } from "motion/react";
+import { AlertCircle, ChevronLeft, ChevronDown, Play } from "lucide-react";
+import { cn } from "../../utils/cn";
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+import {
+  usePageView,
+  trackPlay,
+  trackDownload,
+} from "../../hooks/useAnalytics";
 
 export default function MovieDetails() {
   const { slug } = useParams<{ slug: string }>();
-  const id = extractIdFromSlug(slug || '');
+  const id = extractIdFromSlug(slug || "");
   const navigate = useNavigate();
 
-  // State
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState(0);
   const [selectedEpisode, setSelectedEpisode] = useState(1);
-  const [downloadMode, setDownloadMode] = useState<'single' | 'batch'>('single');
+  const [downloadMode, setDownloadMode] = useState<"single" | "batch">(
+    "single",
+  );
 
   const getProgress = useProgressStore((s) => s.getProgress);
   const isEpisodeComplete = useProgressStore((s) => s.isEpisodeComplete);
 
-  // Queries
   const { data: info, isLoading, error } = useMovieInfo(id);
   const isTvSeries = info?.subject?.subjectType === 2;
   const seasons = info?.resource?.seasons || [];
@@ -40,13 +47,12 @@ export default function MovieDetails() {
     downloadModalOpen,
     isTvSeries,
     selectedSeason,
-    selectedEpisode
+    selectedEpisode,
   );
 
   const sources = sourcesData?.sources || [];
   const subtitles = sourcesData?.subtitles || [];
 
-  // Batch downloads
   const {
     batchResults,
     batchLoading,
@@ -54,49 +60,55 @@ export default function MovieDetails() {
     startBatchDownload,
     startBatchSubtitleDownload,
     resetBatch,
-  } = useBatchDownloads(id, isTvSeries, selectedSeason, info?.subject?.title || '');
+  } = useBatchDownloads(
+    id,
+    isTvSeries,
+    selectedSeason,
+    info?.subject?.title || "",
+  );
 
-  // Recently Viewed tracking
   const addRecentItem = useRecentlyViewedStore((s) => s.addItem);
 
-  // Dynamic JSON-LD structured schema for Google Search Console indexing
+  // ── Track page view when title loads ────────────────────────────────────────
+  usePageView(info?.subject?.title);
+
   const seoSchema = useMemo(() => {
     if (!info?.subject) return undefined;
     const title = info.subject.title;
-    const desc = info.subject.description || info.metadata?.description || '';
-    const img = info.subject.cover?.url || info.metadata?.image || '';
+    const desc = info.subject.description || info.metadata?.description || "";
+    const img = info.subject.cover?.url || info.metadata?.image || "";
     const rating = info.subject.imdbRatingValue;
     const release = info.subject.releaseDate;
 
     return {
       "@context": "https://schema.org",
       "@type": isTvSeries ? "TVSeries" : "Movie",
-      "name": title,
-      "description": desc,
-      "image": img,
-      ...(rating ? {
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": rating,
-          "bestRating": "10",
-          "worstRating": "1",
-          "ratingCount": 1500
-        }
-      } : {}),
-      ...(release ? { "dateCreated": release, "datePublished": release } : {})
+      name: title,
+      description: desc,
+      image: img,
+      ...(rating
+        ? {
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: rating,
+              bestRating: "10",
+              worstRating: "1",
+              ratingCount: 1500,
+            },
+          }
+        : {}),
+      ...(release ? { dateCreated: release, datePublished: release } : {}),
     };
   }, [info?.subject, isTvSeries]);
 
-  // Dynamic SEO
   useSEO({
     title: info?.subject?.title,
     description: info?.subject?.description || info?.metadata?.description,
     image: info?.subject?.cover?.url || info?.metadata?.image,
-    type: isTvSeries ? 'video.tv_show' : 'video.movie',
+    type: isTvSeries ? "video.tv_show" : "video.movie",
     schema: seoSchema,
   });
 
-  // Track recently viewed
   useEffect(() => {
     if (info?.subject) {
       addRecentItem({
@@ -110,19 +122,18 @@ export default function MovieDetails() {
     }
   }, [info?.subject?.title, id]);
 
-  // Auto-select season/episode based on progress or default to first
   useEffect(() => {
     if (isTvSeries && seasons.length > 0 && selectedSeason === 0) {
       const prog = getProgress(String(id));
       if (prog) {
         setSelectedSeason(prog.lastSeason || 1);
-        
-        // If the episode is completed, we suggest playing the next one.
-        // Otherwise, continue watching the current episode.
         const isCompleted = isEpisodeComplete(String(id), prog.lastEpisode);
         const currentSeason = seasons.find((s) => s.se === prog.lastSeason);
-        
-        if (isCompleted && currentSeason && prog.lastEpisode < currentSeason.maxEp) {
+        if (
+          isCompleted &&
+          currentSeason &&
+          prog.lastEpisode < currentSeason.maxEp
+        ) {
           setSelectedEpisode(prog.lastEpisode + 1);
         } else {
           setSelectedEpisode(prog.lastEpisode || 1);
@@ -134,28 +145,23 @@ export default function MovieDetails() {
     }
   }, [isTvSeries, seasons, selectedSeason, id, getProgress, isEpisodeComplete]);
 
-  // Scroll to top on mount
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
 
   const handleCloseModal = () => {
     setDownloadModalOpen(false);
-    setDownloadMode('single');
+    setDownloadMode("single");
     resetBatch();
   };
 
-  const handleModeChange = (mode: 'single' | 'batch') => {
+  const handleModeChange = (mode: "single" | "batch") => {
     setDownloadMode(mode);
-    if (mode === 'single') resetBatch();
+    if (mode === "single") resetBatch();
   };
 
-  // Loading
-  if (isLoading) {
-    return <DetailSkeleton />;
-  }
+  if (isLoading) return <DetailSkeleton />;
 
-  // Error
   if (error || !info?.subject) {
     return (
       <div className="min-h-screen flex items-center justify-center p-8">
@@ -169,18 +175,19 @@ export default function MovieDetails() {
           </div>
           <h2 className="text-2xl font-bold mb-2">Content Not Found</h2>
           <p className="text-sm text-[var(--rf-text-muted)] mb-6">
-            {error ? String((error as any)?.message) : 'This content could not be loaded. It may have been removed or is temporarily unavailable.'}
+            {error
+              ? String((error as any)?.message)
+              : "This content could not be loaded."}
           </p>
           <div className="flex items-center justify-center gap-3">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="btn-glass px-6 py-3 text-sm"
             >
-              <ChevronLeft size={16} />
-              Go Back
+              <ChevronLeft size={16} /> Go Back
             </button>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="btn-primary px-6 py-3 text-sm"
             >
               Home
@@ -195,15 +202,39 @@ export default function MovieDetails() {
   const coverUrl = subject.cover?.url || metadata?.image;
   const backdropUrl = subject.stills?.url || coverUrl;
 
-  const prog = getProgress(subject?.subjectId || id || '');
+  const prog = getProgress(subject?.subjectId || id || "");
   const hasSeriesProgress = isTvSeries && prog;
-  const hasMovieProgress = !isTvSeries && prog && prog.lastTime && prog.duration && prog.lastTime > 5 && prog.lastTime < prog.duration - 15;
+  const hasMovieProgress =
+    !isTvSeries &&
+    prog &&
+    prog.lastTime &&
+    prog.duration &&
+    prog.lastTime > 5 &&
+    prog.lastTime < prog.duration - 15;
 
   const playLabel = hasSeriesProgress
     ? `Continue S${selectedSeason}E${selectedEpisode}`
     : hasMovieProgress
-    ? 'Continue Watching'
-    : 'Watch Now';
+      ? "Continue Watching"
+      : "Watch Now";
+
+  // ── Play handler with tracking ───────────────────────────────────────────────
+  const handlePlay = () => {
+    trackPlay(subject.subjectId || id, subject.title);
+    if (isTvSeries) {
+      const s = selectedSeason > 0 ? selectedSeason : 1;
+      const e = selectedEpisode > 0 ? selectedEpisode : 1;
+      navigate(`/watch/${slug}?s=${s}&e=${e}`);
+    } else {
+      navigate(`/watch/${slug}`);
+    }
+  };
+
+  // ── Download handler with tracking ──────────────────────────────────────────
+  const handleOpenDownload = () => {
+    trackDownload(subject.subjectId || id, subject.title);
+    setDownloadModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen relative -mt-[72px]">
@@ -221,10 +252,15 @@ export default function MovieDetails() {
         />
         <div className="gradient-hero absolute inset-0" />
         <div className="absolute inset-0 gradient-hero-side hidden md:block" />
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 30%, var(--rf-black) 100%)' }} />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, transparent 30%, var(--rf-black) 100%)",
+          }}
+        />
       </div>
 
-      {/* Ambient Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[var(--rf-red)]/[0.04] blur-[120px] rounded-full pointer-events-none" />
 
       {/* ============ CONTENT ============ */}
@@ -236,24 +272,15 @@ export default function MovieDetails() {
             coverUrl={coverUrl}
             isTvSeries={isTvSeries}
             seasons={seasons}
-            onOpenDownload={() => setDownloadModalOpen(true)}
-            onOpenPlay={() => {
-              if (isTvSeries) {
-                const s = selectedSeason > 0 ? selectedSeason : 1;
-                const e = selectedEpisode > 0 ? selectedEpisode : 1;
-                navigate(`/watch/${slug}?s=${s}&e=${e}`);
-              } else {
-                navigate(`/watch/${slug}`);
-              }
-            }}
+            onOpenDownload={handleOpenDownload}
+            onOpenPlay={handlePlay}
             playLabel={playLabel}
           />
 
           <CastCarousel stars={stars} />
-          
           <AITrivia title={subject.title} />
 
-          {/* Premium Episodes Section for Series */}
+          {/* Episodes Section */}
           {isTvSeries && seasons.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -262,10 +289,11 @@ export default function MovieDetails() {
             >
               <h3 className="text-sm font-bold text-white mb-6 flex items-center gap-2">
                 <Play size={14} className="text-[var(--rf-red)] fill-current" />
-                <span className="uppercase tracking-wider text-xs">Episodes Hub</span>
+                <span className="uppercase tracking-wider text-xs">
+                  Episodes Hub
+                </span>
               </h3>
 
-              {/* Seasons Dropdown Selector */}
               <div className="mb-6 max-w-[180px] sm:max-w-xs">
                 <label className="block text-[9px] sm:text-[10px] font-bold text-[var(--rf-text-dim)] mb-1.5 uppercase tracking-wider">
                   Select Season
@@ -283,47 +311,64 @@ export default function MovieDetails() {
                     {seasons
                       .filter((s) => s.se > 0)
                       .map((s) => (
-                        <option key={`season-${s.se}`} value={s.se} className="bg-[var(--rf-surface)] text-white font-bold">
+                        <option
+                          key={`season-${s.se}`}
+                          value={s.se}
+                          className="bg-[var(--rf-surface)] text-white font-bold"
+                        >
                           Season {s.se} ({s.maxEp} Episodes)
                         </option>
                       ))}
                   </select>
-                  <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--rf-text-dim)] pointer-events-none" />
+                  <ChevronDown
+                    size={12}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--rf-text-dim)] pointer-events-none"
+                  />
                 </div>
               </div>
 
-              {/* Premium Episodes Movie Cards Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
                 {Array.from(
-                  { length: seasons.find((s) => s.se === selectedSeason)?.maxEp || 0 },
-                  (_, i) => i + 1
+                  {
+                    length:
+                      seasons.find((s) => s.se === selectedSeason)?.maxEp || 0,
+                  },
+                  (_, i) => i + 1,
                 ).map((ep) => {
-                  const isCompleted = subject.subjectId && isEpisodeComplete(subject.subjectId, ep);
-                  
-                  // Dynamic Episode Progress tracking for MovieDetails Episodes Hub
+                  const isCompleted =
+                    subject.subjectId &&
+                    isEpisodeComplete(subject.subjectId, ep);
                   let realEpProgress = 0;
                   if (isCompleted) {
                     realEpProgress = 100;
                   } else {
                     const epTitle = `${subject.title} - S${selectedSeason}E${ep}`;
-                    const savedTime = localStorage.getItem(`rf_progress_${epTitle}`);
-                    const duration = localStorage.getItem(`rf_progress_${epTitle}_duration`);
+                    const savedTime = localStorage.getItem(
+                      `rf_progress_${epTitle}`,
+                    );
+                    const duration = localStorage.getItem(
+                      `rf_progress_${epTitle}_duration`,
+                    );
                     if (savedTime && duration) {
                       const t = parseFloat(savedTime);
                       const d = parseFloat(duration);
-                      if (d > 0) {
-                        realEpProgress = Math.min((t / d) * 100, 100);
-                      }
+                      if (d > 0) realEpProgress = Math.min((t / d) * 100, 100);
                     }
                   }
 
                   return (
                     <div
                       key={ep}
-                      onClick={() => navigate(`/watch/${slug}?s=${selectedSeason}&e=${ep}`)}
+                      onClick={() => {
+                        // Track episode play
+                        trackPlay(
+                          subject.subjectId || id,
+                          `${subject.title} S${selectedSeason}E${ep}`,
+                        );
+                        navigate(`/watch/${slug}?s=${selectedSeason}&e=${ep}`);
+                      }}
                       className="group cursor-pointer relative bg-white/[0.02] border border-white/[0.04] rounded-2xl overflow-hidden hover:border-[var(--rf-red)]/30 hover:scale-[1.03] transition-all duration-300 shadow-lg flex flex-col"
                     >
-                      {/* Thumbnail Cover */}
                       <div className="relative aspect-video w-full bg-white/5 overflow-hidden">
                         <img
                           src={backdropUrl || coverUrl}
@@ -332,31 +377,23 @@ export default function MovieDetails() {
                           loading="lazy"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                        
-                        {/* Play Button Overlay */}
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                           <div className="w-10 h-10 rounded-full bg-[var(--rf-red)] flex items-center justify-center text-white shadow-lg shadow-[var(--rf-red)]/40 scale-75 group-hover:scale-100 transition-transform duration-300">
                             <Play size={16} className="fill-current ml-0.5" />
                           </div>
                         </div>
-
-                        {/* Episode Number badge */}
                         <span className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md text-white/90 border border-white/10">
                           EP {ep}
                         </span>
-
-                        {/* Progress Bar */}
                         {realEpProgress > 0 && (
                           <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20 z-[3]">
-                            <div 
-                              className="h-full bg-[var(--rf-red)] shadow-[0_0_8px_var(--rf-red)] transition-all duration-300" 
+                            <div
+                              className="h-full bg-[var(--rf-red)] shadow-[0_0_8px_var(--rf-red)] transition-all duration-300"
                               style={{ width: `${realEpProgress}%` }}
                             />
                           </div>
                         )}
                       </div>
-
-                      {/* Text Metadata */}
                       <div className="p-3 flex-1 flex flex-col justify-between">
                         <div>
                           <h4 className="text-xs font-bold text-white group-hover:text-[var(--rf-red)] transition-colors line-clamp-1">
@@ -379,7 +416,6 @@ export default function MovieDetails() {
             </motion.div>
           )}
 
-          {/* Similar Movies */}
           <SimilarMovies
             currentId={id}
             genre={subject.genre}

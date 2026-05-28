@@ -11,15 +11,15 @@ export default function Maintenance() {
 
   const handleAdminBypassSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (bypassPin === '190409') {
-      setBypassed(true);
-      toast.success('Bypass Activated! Welcome back, Admin.', { icon: '🔑' });
-      // Reload page to reflect bypassed state
-      window.location.reload();
-    } else {
-      toast.error('Invalid Administrator Access PIN');
-      setBypassPin('');
-    }
+   if (bypassPin === (import.meta.env.VITE_ADMIN_PIN || "")) {
+     setBypassed(true);
+     toast.success("Bypass Activated! Welcome back, Admin.", { icon: "🔑" });
+     // Reload page to reflect bypassed state
+     window.location.reload();
+   } else {
+     toast.error("Invalid Administrator Access PIN");
+     setBypassPin("");
+   }
   };
 
   return (

@@ -19,6 +19,8 @@ import {
   Star,
   ChevronDown,
   Check,
+  Brain,
+  Calendar,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useDebounce } from "../hooks/useDebounce";
@@ -29,8 +31,15 @@ import { GridSkeleton } from "../components/ui/Skeleton";
 import { useSEO } from "../hooks/useSEO";
 import AISearchPanel from "../components/AISearchPanel";
 import { cn } from "../utils/cn";
+import toast from "react-hot-toast";
 
-/* ─── Constants ──────────────────────────────────────────────── */
+// Advanced Feature Imports [2]
+import { SearchAutocomplete } from "../components/SearchAutocomplete";
+import { YearRangeSlider } from "../components/YearRangeSlider";
+import { CompareDrawer } from "../components/CompareDrawer";
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+import { usePageView, trackSearch } from "../hooks/useAnalytics";
 
 const TRENDING_TAGS = [
   "Batman",
@@ -60,24 +69,23 @@ const GENRE_CARDS = [
 type SortKey = "relevance" | "rating" | "newest" | "oldest";
 type TypeKey = "all" | "movie" | "series";
 
-const SORT_OPTIONS: { key: SortKey; label: string; icon: any }[] = [
-  { key: "relevance", label: "Relevance", icon: SearchIcon },
-  { key: "rating", label: "Top Rated", icon: Star },
-  { key: "newest", label: "Newest", icon: TrendingUp },
-  { key: "oldest", label: "Oldest", icon: Clock },
-];
+const SORT_OPTIONS: { key: SortKey; label: string; icon: React.ElementType }[] =
+  [
+    { key: "relevance", label: "Relevance", icon: SearchIcon },
+    { key: "rating", label: "Top Rated", icon: Star },
+    { key: "newest", label: "Newest", icon: TrendingUp },
+    { key: "oldest", label: "Oldest", icon: Clock },
+  ];
 
 const TYPE_OPTIONS: { key: TypeKey; label: string }[] = [
-  { key: "all", label: "All" },
+  { key: "all", label: "All Content" },
   { key: "movie", label: "Movies" },
   { key: "series", label: "Series" },
 ];
 
-/* ─── Helper ─────────────────────────────────────────────────── */
-const toRating = (val?: string | number): number =>
-  parseFloat(String(val ?? "0")) || 0;
+const toRating = (val?: string | number) => parseFloat(String(val ?? "0")) || 0;
 
-/* ─── Main component ─────────────────────────────────────────── */
+const PAD = "px-4 sm:px-8 md:px-14 lg:px-20";
 
 export default function Search() {
   useSEO({
@@ -85,35 +93,49 @@ export default function Search() {
     description: "Search for any movie or TV series on Lenzorah",
   });
 
+  // ── Track the search page view on mount ─────────────────────────────────────
+  usePageView("Search — Lenzorah");
+
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>("relevance");
   const [typeFilter, setTypeFilter] = useState<TypeKey>("all");
-  const [showFilter, setShowFilter] = useState(false);
+  const [showAI, setShowAI] = useState(false);
+
+  // Advanced States & Corrections [2]
+  const [yearRange, setYearRange] = useState({ min: 1970, max: 2026 });
+  const [minRating, setMinRating] = useState<number>(0);
+  const [selectedCompare, setSelectedCompare] = useState<any[]>([]);
+  const [openDropdown, setOpenDropdown] = useState<
+    "year" | "rating" | "sort" | null
+  >(null);
 
   const debouncedQuery = useDebounce(query, 500);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  const filterRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const filterBarRef = useRef<HTMLDivElement | null>(null);
 
   const [recentSearches, setRecentSearches] = useLocalStorage<string[]>(
     "rf-recent-searches",
     [],
   );
 
-  /* ── Close filter on outside click ── */
+  // Handle dropdown clickaways [2]
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
-        setShowFilter(false);
+    const h = (e: MouseEvent) => {
+      if (
+        filterBarRef.current &&
+        !filterBarRef.current.contains(e.target as Node)
+      ) {
+        setOpenDropdown(null);
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  /* ── Search query ── */
   const {
     data,
     isLoading,
@@ -131,7 +153,6 @@ export default function Search() {
     enabled: debouncedQuery.length > 2,
   });
 
-  /* ── Trending for recommendations ── */
   const { data: trending } = useQuery({
     queryKey: ["trending"],
     queryFn: fetchTrending,
@@ -141,12 +162,20 @@ export default function Search() {
   const rawResults = data?.pages.flatMap((p) => p.items) || [];
   const totalCount = data?.pages[0]?.pager?.totalCount || 0;
 
-  /* ── Sort + filter ── */
+  // Integrated Filtering with Year and Rating ranges [2]
   const results = useMemo(() => {
     let list = [...rawResults];
 
     if (typeFilter === "movie") list = list.filter((m) => m.subjectType === 1);
     if (typeFilter === "series") list = list.filter((m) => m.subjectType === 2);
+
+    list = list.filter((m) => {
+      if (!m.releaseDate) return true;
+      const year = parseInt(m.releaseDate.substring(0, 4));
+      return isNaN(year) || (year >= yearRange.min && year <= yearRange.max);
+    });
+
+    list = list.filter((m) => toRating(m.imdbRatingValue) >= minRating);
 
     if (sortBy === "relevance") {
       const q = debouncedQuery.toLowerCase().trim();
@@ -166,6 +195,7 @@ export default function Search() {
           : toRating(b.imdbRatingValue) - toRating(a.imdbRatingValue);
       });
     }
+
     if (sortBy === "rating")
       list.sort(
         (a, b) => toRating(b.imdbRatingValue) - toRating(a.imdbRatingValue),
@@ -180,9 +210,8 @@ export default function Search() {
       );
 
     return list;
-  }, [rawResults, sortBy, typeFilter, debouncedQuery]);
+  }, [rawResults, sortBy, typeFilter, debouncedQuery, yearRange, minRating]);
 
-  /* ── Recommendations ── */
   const recommended = useMemo(() => {
     if (!trending) return [];
     return [...trending]
@@ -193,19 +222,49 @@ export default function Search() {
       .slice(0, 15);
   }, [trending]);
 
-  /* ── Save recent searches ── */
+  const highestRatedEver = useMemo(() => {
+    if (!trending) return [];
+    return [...trending]
+      .filter((m: any) => toRating(m.imdbRatingValue) >= 8.5)
+      .sort((a, b) => toRating(b.imdbRatingValue) - toRating(a.imdbRatingValue))
+      .slice(0, 15);
+  }, [trending]);
+
+  const newReleases = useMemo(() => {
+    if (!trending) return [];
+    return [...trending]
+      .filter((m: any) => m.releaseDate)
+      .sort((a, b) => (b.releaseDate || "").localeCompare(a.releaseDate || ""))
+      .slice(0, 15);
+  }, [trending]);
+
+  const hiddenGems = useMemo(() => {
+    if (!trending) return [];
+    return [...trending]
+      .filter(
+        (m: any) =>
+          toRating(m.imdbRatingValue) >= 7.0 &&
+          toRating(m.imdbRatingValue) <= 8.2,
+      )
+      .slice(5, 20);
+  }, [trending]);
+
+  // ── Track search when query fires and returns results ────────────────────────
   useEffect(() => {
     if (debouncedQuery.length > 2 && results.length > 0) {
+      // Save to recent searches
       setRecentSearches((prev) => {
         const filtered = prev.filter(
           (s) => s.toLowerCase() !== debouncedQuery.toLowerCase(),
         );
         return [debouncedQuery, ...filtered].slice(0, 8);
       });
-    }
-  }, [debouncedQuery, results.length]);
 
-  /* ── Infinite scroll ── */
+      // Track the search event
+      trackSearch(debouncedQuery);
+    }
+  }, [debouncedQuery, results.length, setRecentSearches]);
+
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
     observerRef.current = new IntersectionObserver(
@@ -221,303 +280,519 @@ export default function Search() {
 
   const handleTagClick = useCallback((tag: string) => {
     setQuery(tag);
+    setShowAI(false);
     inputRef.current?.focus();
   }, []);
+
   const handleAISearchTitle = useCallback((t: string) => {
     setQuery(t);
+    setShowAI(false);
     inputRef.current?.focus();
   }, []);
-  const clearRecentSearches = useCallback(
-    () => setRecentSearches([]),
-    [setRecentSearches],
-  );
 
-  const showSuggestions =
-    query.length <= 2 && isFocused && recentSearches.length > 0;
+  const clearRecentSearches = useCallback(() => {
+    setRecentSearches([]);
+  }, [setRecentSearches]);
+
+  const handleCompareToggle = useCallback((m: any) => {
+    const id = String(m.subjectId);
+    setSelectedCompare((prev) => {
+      const exists = prev.some((x) => x.subjectId === id);
+      if (exists) return prev.filter((x) => x.subjectId !== id);
+      if (prev.length >= 3) {
+        toast.error("You can compare up to 3 titles at once.");
+        return prev;
+      }
+      return [...prev, m];
+    });
+  }, []);
+
   const showDefaultView = debouncedQuery.length <= 2 && !isLoading;
-  const hasActiveFilter = typeFilter !== "all" || sortBy !== "relevance";
+
+  const hasActiveFilter =
+    typeFilter !== "all" ||
+    sortBy !== "relevance" ||
+    yearRange.min !== 1970 ||
+    yearRange.max !== 2026 ||
+    minRating !== 0;
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen max-w-[1600px] mx-auto w-full"
+      className="min-h-screen max-w-[1600px] mx-auto w-full select-none"
     >
-      {/* ══════════════════════════════════════════
-          HEADER BAND
-      ══════════════════════════════════════════ */}
-      <div className="px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28 pt-8 pb-8">
-        {/* Lenzorah wordmark + breadcrumb */}
-        <div className="flex items-center gap-2 mb-5">
-          <span className="text-[var(--rf-red)] font-black text-sm tracking-tight">
+      {/* ── HERO HEADER ── */}
+      <div className={`relative ${PAD} pt-12 pb-8 overflow-visible`}>
+        {/* Cinematic Ambient Glow (Royal Blue & Soft Purple) */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[260px] rounded-full blur-[130px] pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(68,144,255,0.06) 0%, rgba(167,139,250,0.02) 70%)",
+          }}
+        />
+
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 mb-6 relative z-10">
+          <span
+            className="font-black text-[10px] tracking-[0.2em]"
+            style={{ color: "var(--rf-red, #ef4444)" }}
+          >
             LENZORAH
           </span>
           <span className="text-white/20 text-xs">/</span>
-          <span className="text-[var(--rf-text-dim)] text-xs font-medium tracking-wide">
-            Search
+          <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+            Search Hub
           </span>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-black text-white leading-none tracking-tight mb-2">
-              Find anything.
-            </h1>
-            <p className="text-sm text-[var(--rf-text-muted)]">
-              Movies · TV shows · Anime · K-Dramas and more
-            </p>
-          </div>
-
-          {/* Live stats pills */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="glass-2 rounded-full px-3 py-1.5 text-[10px] font-bold text-[var(--rf-text-muted)] border border-white/[0.06] flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              Library live
-            </span>
-            <span className="glass-2 rounded-full px-3 py-1.5 text-[10px] font-bold text-[var(--rf-text-muted)] border border-white/[0.06]">
-              HD · 4K
-            </span>
-            <span className="glass-2 rounded-full px-3 py-1.5 text-[10px] font-bold text-[var(--rf-text-muted)] border border-white/[0.06]">
-              Subtitles
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════
-          SEARCH BAR + FILTER ROW
-      ══════════════════════════════════════════ */}
-      <div className="px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28 pb-8">
-        <div className="flex items-center gap-3 max-w-4xl">
-          {/* Search input */}
-          <div className="relative flex-1">
-            <div
-              className={cn(
-                "flex items-center gap-3 rounded-2xl px-5 py-4 transition-all duration-300 border",
-                "bg-white/[0.04]",
-                isFocused
-                  ? "border-[var(--rf-red)]/60 bg-white/[0.07] ring-2 ring-[var(--rf-red)]/15"
-                  : "border-white/[0.08] hover:border-white/[0.16]",
-              )}
+        {/* Headline */}
+        <div className="relative z-10 mb-8">
+          <h1 className="text-5xl md:text-7xl font-black text-white leading-none tracking-tight mb-2.5">
+            Explore{" "}
+            <span
+              className="text-transparent bg-clip-text"
+              style={{
+                backgroundImage: "linear-gradient(135deg,#4490ff,#a78bfa)",
+              }}
             >
+              Endless Lore.
+            </span>
+          </h1>
+          <p className="text-xs font-semibold tracking-wide text-white/30 uppercase">
+            Discover movies, series, anime, sports and real-time AI
+            recommendations
+          </p>
+        </div>
+
+        {/* ── SEARCH BAR CONTAINER ── */}
+        <div className="relative z-10 max-w-3xl">
+          <div
+            className={cn(
+              "flex items-center rounded-2xl border transition-all duration-300 backdrop-blur-md",
+              isFocused
+                ? "border-[#4490ff]/40 shadow-[0_0_35px_rgba(68,144,255,0.12)] bg-[#4490ff]/[0.02]"
+                : "border-white/[0.08] hover:border-white/[0.14] bg-white/[0.02]",
+            )}
+          >
+            {/* Search icon */}
+            <div className="pl-4 shrink-0">
               <SearchIcon
-                size={20}
-                className={cn(
-                  "shrink-0 transition-colors",
-                  isFocused
-                    ? "text-[var(--rf-red)]"
-                    : "text-[var(--rf-text-dim)]",
-                )}
+                size={18}
+                style={{
+                  color: isFocused ? "#4490ff" : "rgba(255,255,255,0.25)",
+                }}
+                className="transition-colors duration-200"
               />
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setTimeout(() => setIsFocused(false), 200)}
-                placeholder="Search movies, shows, genres, actors…"
-                className="flex-1 bg-transparent border-none outline-none text-white placeholder-[var(--rf-text-dim)] text-base font-medium"
-                autoComplete="off"
-              />
-              <div className="flex items-center gap-2 shrink-0">
-                <AnimatePresence>
-                  {query && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      onClick={() => {
-                        setQuery("");
-                        inputRef.current?.focus();
-                      }}
-                      className="w-6 h-6 rounded-full glass-2 flex items-center justify-center hover:bg-white/10 transition-colors"
-                      aria-label="Clear"
-                    >
-                      <X size={12} />
-                    </motion.button>
-                  )}
-                </AnimatePresence>
-                {!query && (
-                  <span className="text-[10px] text-[var(--rf-text-dim)] glass rounded-md px-1.5 py-0.5 font-mono hidden sm:inline">
-                    ⌘K
-                  </span>
-                )}
-              </div>
             </div>
 
-            {/* Recent searches dropdown */}
-            <AnimatePresence>
-              {showSuggestions && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute top-full left-0 right-0 mt-2 rounded-2xl glass-3 z-30 overflow-hidden shadow-2xl shadow-black/50 border border-white/[0.08]"
-                >
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-black text-[var(--rf-text-dim)] uppercase tracking-widest flex items-center gap-1.5">
-                        <Clock size={11} /> Recent
-                      </span>
-                      <button
-                        onClick={clearRecentSearches}
-                        className="text-[10px] text-[var(--rf-red)] font-bold hover:opacity-70 transition-opacity"
-                      >
-                        Clear all
-                      </button>
-                    </div>
-                    <div className="space-y-0.5">
-                      {recentSearches.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => handleTagClick(s)}
-                          className="w-full text-left px-3 py-2 rounded-xl text-sm text-[var(--rf-text)] hover:bg-white/[0.06] transition-colors flex items-center gap-2.5"
-                        >
-                          <Clock
-                            size={12}
-                            className="text-[var(--rf-text-dim)] shrink-0"
-                          />
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            {/* Live Autocomplete Input [2] */}
+            <SearchAutocomplete
+              inputRef={inputRef}
+              query={query}
+              setQuery={setQuery}
+              isFocused={isFocused}
+              setIsFocused={setIsFocused}
+              recentSearches={recentSearches}
+              onClearRecent={clearRecentSearches}
+              onTagClick={handleTagClick}
+            />
 
-          {/* Filter button */}
-          <div className="relative shrink-0" ref={filterRef}>
-            <button
-              onClick={() => setShowFilter((p) => !p)}
-              className={cn(
-                "flex items-center gap-2 px-4 py-4 rounded-2xl border transition-all duration-200 font-bold text-sm",
-                hasActiveFilter
-                  ? "bg-[var(--rf-red)] border-[var(--rf-red)] text-white shadow-lg shadow-[var(--rf-red)]/20"
-                  : "glass-2 border-white/[0.08] text-[var(--rf-text-muted)] hover:text-white hover:border-white/[0.2]",
-              )}
-            >
-              <SlidersHorizontal size={16} />
-              <span className="hidden sm:inline">Filter</span>
-              {hasActiveFilter && (
-                <span className="w-2 h-2 rounded-full bg-white shrink-0" />
-              )}
-              <ChevronDown
-                size={13}
-                className={cn(
-                  "transition-transform hidden sm:block",
-                  showFilter && "rotate-180",
+            {/* Right controls */}
+            <div className="flex items-center gap-1.5 pr-2.5 shrink-0">
+              {/* Clear button */}
+              <AnimatePresence>
+                {query && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.7 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.7 }}
+                    onClick={() => {
+                      setQuery("");
+                      inputRef.current?.focus();
+                    }}
+                    className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+                    style={{ background: "rgba(255,255,255,0.05)" }}
+                  >
+                    <X size={11} className="text-white/50" />
+                  </motion.button>
                 )}
-              />
-            </button>
+              </AnimatePresence>
 
-            {/* Filter dropdown */}
-            <AnimatePresence>
-              {showFilter && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute top-full right-0 mt-2 w-64 glass-3 rounded-2xl p-5 z-40 shadow-2xl shadow-black/60 border border-white/[0.1]"
+              {!query && (
+                <span
+                  className="text-[9px] text-white/20 rounded-md px-1.5 py-0.5 font-mono hidden sm:inline"
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.05)",
+                  }}
                 >
-                  {/* Content type */}
-                  <p className="text-[10px] font-black text-[var(--rf-text-dim)] uppercase tracking-widest mb-2.5">
-                    Content type
-                  </p>
-                  <div className="flex gap-1.5 mb-5">
-                    {TYPE_OPTIONS.map(({ key, label }) => (
-                      <button
-                        key={key}
-                        onClick={() => setTypeFilter(key)}
-                        className={cn(
-                          "flex-1 py-2 text-xs font-bold rounded-xl border transition-all",
-                          typeFilter === key
-                            ? "bg-[var(--rf-red)] border-transparent text-white shadow-md shadow-[var(--rf-red)]/20"
-                            : "glass border-white/[0.08] text-[var(--rf-text-muted)] hover:text-white",
-                        )}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Sort by */}
-                  <p className="text-[10px] font-black text-[var(--rf-text-dim)] uppercase tracking-widest mb-2.5">
-                    Sort by
-                  </p>
-                  <div className="flex flex-col gap-1 mb-4">
-                    {SORT_OPTIONS.map(({ key, label, icon: Icon }) => (
-                      <button
-                        key={key}
-                        onClick={() => setSortBy(key)}
-                        className={cn(
-                          "flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all",
-                          sortBy === key
-                            ? "bg-[var(--rf-red)]/15 text-white border border-[var(--rf-red)]/30"
-                            : "hover:bg-white/[0.05] text-[var(--rf-text-muted)] hover:text-white border border-transparent",
-                        )}
-                      >
-                        <span className="flex items-center gap-2">
-                          <Icon size={12} />
-                          {label}
-                        </span>
-                        {sortBy === key && (
-                          <Check size={12} className="text-[var(--rf-red)]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-
-                  {hasActiveFilter && (
-                    <button
-                      onClick={() => {
-                        setSortBy("relevance");
-                        setTypeFilter("all");
-                      }}
-                      className="w-full py-2.5 text-xs font-bold text-[var(--rf-red)] hover:opacity-70 transition-opacity border-t border-white/[0.06] pt-3"
-                    >
-                      Reset all filters
-                    </button>
-                  )}
-                </motion.div>
+                  ⌘K
+                </span>
               )}
-            </AnimatePresence>
+
+              {/* Divider */}
+              <div
+                className="w-px h-5 mx-1 shrink-0"
+                style={{ background: "rgba(255,255,255,0.06)" }}
+              />
+
+              {/* ── AI Suite Toggle Button ── */}
+              <button
+                onClick={() => {
+                  setShowAI((p) => !p);
+                  setOpenDropdown(null);
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 border outline-none focus:outline-none",
+                  showAI
+                    ? "text-purple-300 border-purple-500/30"
+                    : "text-white/30 hover:text-purple-300 border-transparent hover:border-purple-500/15",
+                )}
+                style={showAI ? { background: "rgba(147,51,234,0.1)" } : {}}
+                title="Advanced AI Options"
+              >
+                <Brain
+                  size={13}
+                  className={showAI ? "text-purple-400" : "text-white/30"}
+                />
+                <span className="hidden sm:inline">AI Suite</span>
+                <AnimatePresence>
+                  {showAI && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: "auto" }}
+                      exit={{ opacity: 0, width: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <X size={9} className="text-purple-400/70" />
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </button>
+            </div>
           </div>
+
+          {/* AI Panel dropdown (Wired to query and setQuery directly) [1] */}
+          <AnimatePresence>
+            {showAI && (
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute top-full left-0 right-0 mt-2 z-40"
+              >
+                <AISearchPanel
+                  query={query}
+                  setQuery={setQuery}
+                  onSearchTitle={handleAISearchTitle}
+                  open={showAI}
+                  onClose={() => setShowAI(false)}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
+
+        {/* ── HORIZONTAL FILTER BAR (Blue Glow & Accents) [2] ── */}
+        {/* Hidden when AI is active to prevent clashing [1] */}
+        <AnimatePresence>
+          {!showAI && (
+            <motion.div
+              ref={filterBarRef}
+              initial={{ opacity: 0, y: -10, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: "auto" }}
+              exit={{ opacity: 0, y: -10, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="relative z-30 mt-6 flex flex-wrap items-center gap-3 bg-[#07070a]/90 border border-white/[0.06] rounded-3xl p-3 md:p-3.5 shadow-xl select-none max-w-3xl overflow-hidden"
+            >
+              {/* Label + Divider */}
+              <div className="flex items-center gap-2 px-1">
+                <SlidersHorizontal size={14} className="text-[#4490ff]" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-white/50">
+                  Filters
+                </span>
+                <div className="w-px h-5 bg-white/10 ml-2" />
+              </div>
+
+              {/* Category Segmented Control (Blue Glow Accent) [2] */}
+              <div className="flex bg-white/[0.02] border border-white/[0.05] rounded-xl p-1 gap-1">
+                {TYPE_OPTIONS.map(({ key, label }) => {
+                  const isActive = typeFilter === key;
+                  const Icon =
+                    key === "all" ? Sparkles : key === "movie" ? Film : Tv;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setTypeFilter(key);
+                        setOpenDropdown(null);
+                      }}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 outline-none focus:outline-none cursor-pointer",
+                        isActive
+                          ? "text-white bg-[#4490ff] shadow-[0_0_15px_rgba(68,144,255,0.35)]"
+                          : "text-white/45 hover:text-white/70",
+                      )}
+                    >
+                      <Icon
+                        size={11}
+                        className={isActive ? "text-white" : "text-white/30"}
+                      />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Calendar Icon + Release Year Dropdown */}
+              <div className="relative flex items-center gap-2">
+                <Calendar size={13} className="text-white/30" />
+                <button
+                  onClick={() => {
+                    setOpenDropdown(openDropdown === "year" ? null : "year");
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] text-xs font-bold text-white rounded-xl outline-none transition-all cursor-pointer"
+                >
+                  <span>
+                    {yearRange.min === 1970 && yearRange.max === 2026
+                      ? "All Release Years"
+                      : `${yearRange.min} - ${yearRange.max}`}
+                  </span>
+                  <ChevronDown
+                    size={11}
+                    className={cn(
+                      "text-white/40 transition-transform duration-200",
+                      openDropdown === "year" && "rotate-180",
+                    )}
+                  />
+                </button>
+
+                {/* Dropdown Box */}
+                <AnimatePresence>
+                  {openDropdown === "year" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 6 }}
+                      className="absolute top-full left-0 mt-2 w-64 bg-[#0a0a0f] border border-white/[0.08] p-4 rounded-2xl shadow-2xl z-50"
+                    >
+                      <YearRangeSlider
+                        minYear={1970}
+                        maxYear={2026}
+                        onChange={(range) => setYearRange(range)}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Star Icon + Minimum Rating Dropdown */}
+              <div className="relative flex items-center gap-2">
+                <Star size={13} className="text-white/30" />
+                <button
+                  onClick={() => {
+                    setOpenDropdown(
+                      openDropdown === "rating" ? null : "rating",
+                    );
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] text-xs font-bold text-white rounded-xl outline-none transition-all cursor-pointer"
+                >
+                  <span>
+                    {minRating === 0
+                      ? "Minimum Rating"
+                      : `Rating: ${minRating}+`}
+                  </span>
+                  <ChevronDown
+                    size={11}
+                    className={cn(
+                      "text-white/40 transition-transform duration-200",
+                      openDropdown === "rating" && "rotate-180",
+                    )}
+                  />
+                </button>
+
+                <AnimatePresence>
+                  {openDropdown === "rating" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 6 }}
+                      className="absolute top-full left-0 mt-2 w-48 bg-[#0a0a0f] border border-white/[0.08] p-2 rounded-2xl shadow-2xl z-50"
+                    >
+                      <div className="space-y-1">
+                        {[0, 5, 6, 7, 8, 9].map((val) => (
+                          <button
+                            key={val}
+                            onClick={() => {
+                              setMinRating(val);
+                              setOpenDropdown(null);
+                            }}
+                            className={cn(
+                              "w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer",
+                              minRating === val
+                                ? "text-white bg-[#4490ff]/10 text-[#4490ff]"
+                                : "text-white/50 hover:bg-white/[0.03] hover:text-white",
+                            )}
+                          >
+                            <span>
+                              {val === 0 ? "All Ratings" : `${val}+ Rating`}
+                            </span>
+                            {minRating === val && <Check size={11} />}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Sliders Icon + Sort Dropdown */}
+              <div className="relative flex items-center gap-2 ml-auto">
+                <SlidersHorizontal size={13} className="text-white/30" />
+                <button
+                  onClick={() => {
+                    setOpenDropdown(openDropdown === "sort" ? null : "sort");
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] text-xs font-bold text-white rounded-xl outline-none transition-all cursor-pointer"
+                >
+                  <span>
+                    Sort:{" "}
+                    {SORT_OPTIONS.find((opt) => opt.key === sortBy)?.label ||
+                      "Relevance"}
+                  </span>
+                  <ChevronDown
+                    size={11}
+                    className={cn(
+                      "text-white/40 transition-transform duration-200",
+                      openDropdown === "sort" && "rotate-180",
+                    )}
+                  />
+                </button>
+
+                <AnimatePresence>
+                  {openDropdown === "sort" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 6 }}
+                      className="absolute top-full right-0 mt-2 w-48 bg-[#0a0a0f] border border-white/[0.08] p-2 rounded-2xl shadow-2xl z-50"
+                    >
+                      <div className="space-y-1">
+                        {SORT_OPTIONS.map(({ key, label, icon: Icon }) => (
+                          <button
+                            key={key}
+                            onClick={() => {
+                              setSortBy(key);
+                              setOpenDropdown(null);
+                            }}
+                            className={cn(
+                              "w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer",
+                              sortBy === key
+                                ? "text-white bg-[#4490ff]/10 text-[#4490ff]"
+                                : "text-white/50 hover:bg-white/[0.03] hover:text-white",
+                            )}
+                          >
+                            <span className="flex items-center gap-2">
+                              <Icon size={11} className="opacity-70" />
+                              {label}
+                            </span>
+                            {sortBy === key && <Check size={11} />}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Active filter pills */}
         <AnimatePresence>
-          {hasActiveFilter && (
+          {hasActiveFilter && !showAI && (
             <motion.div
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              className="flex items-center gap-2 mt-3 flex-wrap"
+              className="flex items-center gap-2 mt-4 flex-wrap relative z-10 max-w-3xl"
             >
-              <span className="text-[10px] text-[var(--rf-text-dim)] font-bold uppercase tracking-widest">
-                Active:
+              <span
+                className="text-[9px] font-black uppercase tracking-widest"
+                style={{ color: "rgba(255,255,255,0.3)" }}
+              >
+                Active Constraints:
               </span>
               {typeFilter !== "all" && (
-                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--rf-red)]/15 border border-[var(--rf-red)]/30 text-[10px] font-bold text-[var(--rf-red)]">
+                <span
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider"
+                  style={{
+                    background: "rgba(68,144,255,0.08)",
+                    border: "1px solid rgba(68,144,255,0.2)",
+                    color: "#4490ff",
+                  }}
+                >
                   {TYPE_OPTIONS.find((t) => t.key === typeFilter)?.label}
                   <button
                     onClick={() => setTypeFilter("all")}
-                    className="hover:opacity-60"
+                    className="hover:opacity-60 cursor-pointer"
                   >
                     <X size={9} />
                   </button>
                 </span>
               )}
               {sortBy !== "relevance" && (
-                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--rf-red)]/15 border border-[var(--rf-red)]/30 text-[10px] font-bold text-[var(--rf-red)]">
+                <span
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider"
+                  style={{
+                    background: "rgba(68,144,255,0.08)",
+                    border: "1px solid rgba(68,144,255,0.2)",
+                    color: "#4490ff",
+                  }}
+                >
                   {SORT_OPTIONS.find((s) => s.key === sortBy)?.label}
                   <button
                     onClick={() => setSortBy("relevance")}
-                    className="hover:opacity-60"
+                    className="hover:opacity-60 cursor-pointer"
+                  >
+                    <X size={9} />
+                  </button>
+                </span>
+              )}
+              {(yearRange.min !== 1970 || yearRange.max !== 2026) && (
+                <span
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider"
+                  style={{
+                    background: "rgba(68,144,255,0.08)",
+                    border: "1px solid rgba(68,144,255,0.2)",
+                    color: "#4490ff",
+                  }}
+                >
+                  {yearRange.min} - {yearRange.max}
+                  <button
+                    onClick={() => setYearRange({ min: 1970, max: 2026 })}
+                    className="hover:opacity-60 cursor-pointer"
+                  >
+                    <X size={9} />
+                  </button>
+                </span>
+              )}
+              {minRating !== 0 && (
+                <span
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider"
+                  style={{
+                    background: "rgba(68,144,255,0.08)",
+                    border: "1px solid rgba(68,144,255,0.2)",
+                    color: "#4490ff",
+                  }}
+                >
+                  Rating: {minRating}+
+                  <button
+                    onClick={() => setMinRating(0)}
+                    className="hover:opacity-60 cursor-pointer"
                   >
                     <X size={9} />
                   </button>
@@ -528,37 +803,38 @@ export default function Search() {
         </AnimatePresence>
       </div>
 
-      {/* ══════════════════════════════════════════
-          LOADING
-      ══════════════════════════════════════════ */}
+      {/* ── LOADING SKELETON ── */}
       {isLoading && debouncedQuery.length > 2 && (
-        <div className="px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28">
+        <div className={`${PAD} pb-12`}>
           <GridSkeleton count={12} />
         </div>
       )}
 
-      {/* ══════════════════════════════════════════
-          RESULTS
-      ══════════════════════════════════════════ */}
+      {/* ── SEARCH RESULTS ── */}
       {!isLoading && results.length > 0 && (
-        <div className="px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28 pb-12">
+        <div className={`${PAD} pb-12`}>
           <div className="flex items-center justify-between mb-5">
-            <p className="text-xs text-[var(--rf-text-dim)] font-medium">
-              <span className="text-white font-bold">
+            <p
+              className="text-xs font-semibold"
+              style={{ color: "rgba(255,255,255,0.35)" }}
+            >
+              Matched{" "}
+              <span className="text-white font-black">
                 {totalCount > 0 ? totalCount.toLocaleString() : results.length}
               </span>{" "}
-              results for{" "}
-              <span className="text-white font-bold">"{debouncedQuery}"</span>
+              indexes for{" "}
+              <span className="text-white font-black">"{debouncedQuery}"</span>
               {hasActiveFilter && (
-                <span className="text-[var(--rf-red)] ml-1">· filtered</span>
+                <span className="ml-1.5 font-bold" style={{ color: "#4490ff" }}>
+                  · filtered
+                </span>
               )}
             </p>
           </div>
-
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 md:gap-4.5"
           >
             {results.map((movie: any, idx: number) => (
               <MovieCard
@@ -566,92 +842,94 @@ export default function Search() {
                 movie={movie}
                 index={idx}
                 size="md"
+                isCompared={selectedCompare.some(
+                  (item) => item.subjectId === String(movie.subjectId),
+                )}
+                onCompareToggle={handleCompareToggle}
               />
             ))}
           </motion.div>
-
           <div ref={loadMoreRef} className="py-10 flex justify-center">
             {isFetchingNextPage && (
-              <div className="flex items-center gap-2.5 text-[var(--rf-text-dim)]">
+              <div
+                className="flex items-center gap-2.5"
+                style={{ color: "rgba(255,255,255,0.4)" }}
+              >
                 <Loader2
-                  size={16}
-                  className="animate-spin text-[var(--rf-red)]"
+                  size={15}
+                  className="animate-spin"
+                  style={{ color: "#4490ff" }}
                 />
-                <span className="text-xs font-medium">Loading more…</span>
+                <span className="text-xs font-bold uppercase tracking-wider">
+                  Syncing Lore...
+                </span>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ══════════════════════════════════════════
-          ERROR
-      ══════════════════════════════════════════ */}
+      {/* ── EXCEPTION ERROR STATE ── */}
       {error && debouncedQuery.length > 2 && (
-        <div className="text-center py-20 px-6">
-          <div className="w-16 h-16 rounded-2xl glass-2 flex items-center justify-center mx-auto mb-4 text-[var(--rf-red)]">
-            <SearchIcon size={28} />
-          </div>
-          <h3 className="text-lg font-bold text-white mb-2">Search error</h3>
-          <p className="text-sm text-[var(--rf-text-dim)]">
-            {String((error as any)?.message)}
-          </p>
-        </div>
+        <EmptyState
+          icon={<SearchIcon size={22} className="text-red-400" />}
+          title="Search error occurred"
+          sub={String((error as any)?.message)}
+          bg="rgba(239,68,68,0.06)"
+          border="rgba(239,68,68,0.15)"
+        />
       )}
 
-      {/* ══════════════════════════════════════════
-          EMPTY RESULTS
-      ══════════════════════════════════════════ */}
+      {/* ── NULL RESULTS STATE ── */}
       {debouncedQuery.length > 2 &&
         !isLoading &&
         !error &&
         results.length === 0 && (
-          <div className="text-center py-20 px-6">
-            <div className="w-16 h-16 rounded-2xl glass-2 flex items-center justify-center mx-auto mb-4 text-[var(--rf-text-dim)]">
-              <SearchIcon size={28} />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">
-              No results found
-            </h3>
-            <p className="text-sm text-[var(--rf-text-dim)] max-w-sm mx-auto">
-              Try a different term or browse a category below
-            </p>
-          </div>
+          <EmptyState
+            icon={
+              <SearchIcon
+                size={22}
+                style={{ color: "rgba(255,255,255,0.2)" }}
+              />
+            }
+            title="No records found"
+            sub="Refine your index terminology or scan predefined catalogs below"
+          />
         )}
 
-      {/* ══════════════════════════════════════════
-          DEFAULT LANDING
-      ══════════════════════════════════════════ */}
+      {/* ── DEFAULT DEFAULT VIEW (LANDING) ── */}
       <AnimatePresence>
         {showDefaultView && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ delay: 0.05 }}
-            className="space-y-14 pb-16"
+            transition={{ delay: 0.04 }}
+            className="space-y-16 pb-20"
           >
-            {/* AI panel */}
-            <div className="px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28">
-              <AISearchPanel onSearchTitle={handleAISearchTitle} />
-            </div>
-
-            {/* ── Recommended row ── */}
+            {/* Recommended Row */}
             {recommended.length > 0 && (
               <div>
-                <div className="px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28 mb-5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-[var(--rf-red)]/15 flex items-center justify-center">
-                      <Sparkles size={16} className="text-[var(--rf-red)]" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-[var(--rf-red)] uppercase tracking-widest">
-                        Lenzorah Picks
-                      </p>
-                      <h2 className="text-lg font-black text-white leading-tight">
-                        Recommended for you
-                      </h2>
-                    </div>
+                <div className={`${PAD} mb-5 flex items-center gap-3`}>
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    style={{
+                      background: "rgba(68,144,255,0.08)",
+                      border: "1px solid rgba(68,144,255,0.15)",
+                    }}
+                  >
+                    <Sparkles size={13} style={{ color: "#4490ff" }} />
+                  </div>
+                  <div>
+                    <p
+                      className="text-[9px] font-black uppercase tracking-widest"
+                      style={{ color: "#4490ff" }}
+                    >
+                      Curated Selections
+                    </p>
+                    <h2 className="text-sm font-black text-white leading-tight">
+                      Recommended Indexes
+                    </h2>
                   </div>
                 </div>
                 <MovieRow title="" subtitle="">
@@ -660,33 +938,200 @@ export default function Search() {
                       key={`rec-${movie.subjectId}-${idx}`}
                       className="snap-start"
                     >
-                      <MovieCard movie={movie} index={idx} size="md" />
+                      <MovieCard
+                        movie={movie}
+                        index={idx}
+                        size="md"
+                        isCompared={selectedCompare.some(
+                          (item) => item.subjectId === String(movie.subjectId),
+                        )}
+                        onCompareToggle={handleCompareToggle}
+                      />
                     </div>
                   ))}
                 </MovieRow>
               </div>
             )}
 
-            {/* ── Genre cards ── */}
-            <div className="px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28">
-              <p className="text-[10px] font-black text-[var(--rf-text-dim)] uppercase tracking-widest mb-4">
-                Browse by genre
-              </p>
+            {/* Curated Row: Highest Rated Ever [2] */}
+            {highestRatedEver.length > 0 && (
+              <div>
+                <div className={`${PAD} mb-5 flex items-center gap-3`}>
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    style={{
+                      background: "rgba(68,144,255,0.08)",
+                      border: "1px solid rgba(68,144,255,0.15)",
+                    }}
+                  >
+                    <Star size={13} style={{ color: "#4490ff" }} />
+                  </div>
+                  <div>
+                    <p
+                      className="text-[9px] font-black uppercase tracking-widest"
+                      style={{ color: "#4490ff" }}
+                    >
+                      Legendary Directory
+                    </p>
+                    <h2 className="text-sm font-black text-white leading-tight">
+                      Highest Rated Ever
+                    </h2>
+                  </div>
+                </div>
+                <MovieRow title="" subtitle="">
+                  {highestRatedEver.map((movie: any, idx: number) => (
+                    <div
+                      key={`high-${movie.subjectId}-${idx}`}
+                      className="snap-start"
+                    >
+                      <MovieCard
+                        movie={movie}
+                        index={idx}
+                        size="md"
+                        isCompared={selectedCompare.some(
+                          (item) => item.subjectId === String(movie.subjectId),
+                        )}
+                        onCompareToggle={handleCompareToggle}
+                      />
+                    </div>
+                  ))}
+                </MovieRow>
+              </div>
+            )}
+
+            {/* Curated Row: New Releases [2] */}
+            {newReleases.length > 0 && (
+              <div>
+                <div className={`${PAD} mb-5 flex items-center gap-3`}>
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    style={{
+                      background: "rgba(68,144,255,0.08)",
+                      border: "1px solid rgba(68,144,255,0.15)",
+                    }}
+                  >
+                    <TrendingUp size={13} style={{ color: "#4490ff" }} />
+                  </div>
+                  <div>
+                    <p
+                      className="text-[9px] font-black uppercase tracking-widest"
+                      style={{ color: "#4490ff" }}
+                    >
+                      Just Added
+                    </p>
+                    <h2 className="text-sm font-black text-white leading-tight">
+                      New Releases
+                    </h2>
+                  </div>
+                </div>
+                <MovieRow title="" subtitle="">
+                  {newReleases.map((movie: any, idx: number) => (
+                    <div
+                      key={`new-${movie.subjectId}-${idx}`}
+                      className="snap-start"
+                    >
+                      <MovieCard
+                        movie={movie}
+                        index={idx}
+                        size="md"
+                        isCompared={selectedCompare.some(
+                          (item) => item.subjectId === String(movie.subjectId),
+                        )}
+                        onCompareToggle={handleCompareToggle}
+                      />
+                    </div>
+                  ))}
+                </MovieRow>
+              </div>
+            )}
+
+            {/* Curated Row: Hidden Gems [2] */}
+            {hiddenGems.length > 0 && (
+              <div>
+                <div className={`${PAD} mb-5 flex items-center gap-3`}>
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    style={{
+                      background: "rgba(68,144,255,0.08)",
+                      border: "1px solid rgba(68,144,255,0.15)",
+                    }}
+                  >
+                    <Sparkles size={13} style={{ color: "#4490ff" }} />
+                  </div>
+                  <div>
+                    <p
+                      className="text-[9px] font-black uppercase tracking-widest"
+                      style={{ color: "#4490ff" }}
+                    >
+                      Underrated
+                    </p>
+                    <h2 className="text-sm font-black text-white leading-tight">
+                      Hidden Gems
+                    </h2>
+                  </div>
+                </div>
+                <MovieRow title="" subtitle="">
+                  {hiddenGems.map((movie: any, idx: number) => (
+                    <div
+                      key={`gem-${movie.subjectId}-${idx}`}
+                      className="snap-start"
+                    >
+                      <MovieCard
+                        movie={movie}
+                        index={idx}
+                        size="md"
+                        isCompared={selectedCompare.some(
+                          (item) => item.subjectId === String(movie.subjectId),
+                        )}
+                        onCompareToggle={handleCompareToggle}
+                      />
+                    </div>
+                  ))}
+                </MovieRow>
+              </div>
+            )}
+
+            {/* Premium Category Grid */}
+            <div className={PAD}>
+              <SectionLabel
+                icon={<Film size={11} />}
+                label="Categorized Directories"
+              />
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
                 {GENRE_CARDS.map(({ label, sub, icon: Icon, query: q }) => (
                   <button
                     key={label}
                     onClick={() => handleTagClick(q)}
-                    className="group text-left glass-2 rounded-2xl p-4 border border-white/[0.06] hover:border-[var(--rf-red)]/40 hover:bg-white/[0.06] transition-all duration-200 active:scale-[0.97]"
+                    className="group text-left rounded-2xl p-4.5 border transition-all duration-300 active:scale-[0.97] outline-none"
+                    style={{
+                      background: "rgba(255,255,255,0.015)",
+                      border: "1px solid rgba(255,255,255,0.05)",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor =
+                        "rgba(68,144,255,0.25)";
+                      (e.currentTarget as HTMLElement).style.background =
+                        "rgba(68,144,255,0.04)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor =
+                        "rgba(255,255,255,0.05)";
+                      (e.currentTarget as HTMLElement).style.background =
+                        "rgba(255,255,255,0.015)";
+                    }}
                   >
                     <Icon
-                      size={20}
-                      className="text-[var(--rf-text-dim)] group-hover:text-[var(--rf-red)] transition-colors mb-3"
+                      size={18}
+                      className="mb-3.5 transition-colors duration-300 group-hover:text-[#4490ff]"
+                      style={{ color: "rgba(255,255,255,0.25)" }}
                     />
-                    <p className="text-sm font-bold text-white leading-tight mb-0.5">
+                    <p className="text-[13px] font-bold text-white leading-tight mb-1">
                       {label}
                     </p>
-                    <p className="text-[11px] text-[var(--rf-text-dim)] leading-tight">
+                    <p
+                      className="text-[10px] font-medium leading-tight"
+                      style={{ color: "rgba(255,255,255,0.25)" }}
+                    >
                       {sub}
                     </p>
                   </button>
@@ -694,42 +1139,98 @@ export default function Search() {
               </div>
             </div>
 
-            {/* ── Trending tags ── */}
-            <div className="px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28">
-              <p className="text-[10px] font-black text-[var(--rf-text-dim)] uppercase tracking-widest mb-4 flex items-center gap-1.5">
-                <TrendingUp size={12} /> Trending searches
-              </p>
+            {/* Trending Tags */}
+            <div className={PAD}>
+              <SectionLabel
+                icon={<TrendingUp size={11} />}
+                label="Frequent queries"
+              />
               <div className="flex flex-wrap gap-2">
                 {TRENDING_TAGS.map((tag) => (
                   <button
                     key={tag}
                     onClick={() => handleTagClick(tag)}
-                    className="px-4 py-2 glass-2 rounded-full text-sm font-medium text-[var(--rf-text-muted)] border border-white/[0.06] hover:border-[var(--rf-red)]/30 hover:text-white transition-all active:scale-95"
+                    className="px-4.5 py-2.5 rounded-full text-[11px] font-bold tracking-wider transition-all active:scale-95 outline-none"
+                    style={{
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      color: "rgba(255,255,255,0.4)",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor =
+                        "rgba(68,144,255,0.3)";
+                      (e.currentTarget as HTMLElement).style.color = "#fff";
+                      (e.currentTarget as HTMLElement).style.background =
+                        "rgba(68,144,255,0.06)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor =
+                        "rgba(255,255,255,0.06)";
+                      (e.currentTarget as HTMLElement).style.color =
+                        "rgba(255,255,255,0.4)";
+                      (e.currentTarget as HTMLElement).style.background =
+                        "rgba(255,255,255,0.02)";
+                    }}
                   >
-                    {tag}
+                    #{tag.toUpperCase()}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* ── Discover footer card ── */}
-            <div className="px-6 sm:px-10 md:px-16 lg:px-20 xl:px-28">
-              <div className="relative rounded-3xl overflow-hidden border border-white/[0.07] bg-white/[0.02] p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                {/* Subtle red accent line */}
-                <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full bg-[var(--rf-red)]" />
-                <div className="w-12 h-12 rounded-2xl bg-[var(--rf-red)]/10 border border-[var(--rf-red)]/20 flex items-center justify-center shrink-0">
-                  <Sparkles size={22} className="text-[var(--rf-red)]" />
+            {/* Discover card */}
+            <div className={PAD}>
+              <div
+                className="relative rounded-3xl overflow-hidden px-8 py-7 flex flex-col sm:flex-row items-start sm:items-center gap-6"
+                style={{
+                  background: "rgba(68,144,255,0.03)",
+                  border: "1px solid rgba(68,144,255,0.07)",
+                }}
+              >
+                <div
+                  className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full"
+                  style={{ background: "#4490ff" }}
+                />
+                <div
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+                  style={{
+                    background: "rgba(68,144,255,0.08)",
+                    border: "1px solid rgba(68,144,255,0.15)",
+                  }}
+                >
+                  <Film size={18} style={{ color: "#4490ff" }} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-[var(--rf-red)] uppercase tracking-[0.2em] mb-1">
-                    Lenzorah
+                  <p
+                    className="text-[9px] font-black uppercase tracking-[0.25em] mb-0.5"
+                    style={{ color: "#4490ff" }}
+                  >
+                    Lenzorah Suite
                   </p>
-                  <h3 className="text-xl font-black text-white mb-1.5 leading-tight">
-                    Discover something new
+                  <h3 className="text-[15px] font-black text-white mb-1.5">
+                    Unravel custom indices
                   </h3>
-                  <p className="text-sm text-[var(--rf-text-dim)] max-w-lg leading-relaxed">
-                    Search for your favourite movies, TV shows, actors, or
-                    genres. Start typing above to explore our entire library.
+                  <p
+                    className="text-[11px] leading-relaxed"
+                    style={{ color: "rgba(255,255,255,0.3)" }}
+                  >
+                    Scan catalogs using standard queries, or leverage the{" "}
+                    <button
+                      onClick={() => setShowAI(true)}
+                      className="inline-flex items-center gap-1 font-bold underline underline-offset-2 transition-colors"
+                      style={{ color: "#a78bfa" }}
+                      onMouseEnter={(e) =>
+                        ((e.currentTarget as HTMLElement).style.color =
+                          "#c4b5fd")
+                      }
+                      onMouseLeave={(e) =>
+                        ((e.currentTarget as HTMLElement).style.color =
+                          "#a78bfa")
+                      }
+                    >
+                      <Brain size={11} /> AI Suite
+                    </button>{" "}
+                    integrated directly into your search bar.
                   </p>
                 </div>
               </div>
@@ -737,6 +1238,73 @@ export default function Search() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Compare Side Drawer overlay [2] */}
+      <CompareDrawer
+        selectedItems={selectedCompare}
+        onRemove={(id) =>
+          setSelectedCompare((prev) =>
+            prev.filter((item) => item.subjectId !== id),
+          )
+        }
+        onClear={() => setSelectedCompare([])}
+      />
     </motion.div>
+  );
+}
+
+/* ── UI Helpers ── */
+function SectionLabel({
+  icon,
+  label,
+}: {
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <p
+      className="text-[9px] font-black uppercase tracking-widest mb-4 flex items-center gap-1.5"
+      style={{ color: "rgba(255,255,255,0.3)" }}
+    >
+      {icon}
+      {label}
+    </p>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  sub,
+  bg,
+  border,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  sub: string;
+  bg?: string;
+  border?: string;
+}) {
+  return (
+    <div className="text-center py-20 px-6">
+      <div
+        className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+        style={{
+          background: bg || "rgba(255,255,255,0.015)",
+          border: `1px solid ${border || "rgba(255,255,255,0.06)"}`,
+        }}
+      >
+        {icon}
+      </div>
+      <h3 className="text-sm font-black text-white uppercase tracking-wider mb-1.5">
+        {title}
+      </h3>
+      <p
+        className="text-xs max-w-sm mx-auto leading-relaxed"
+        style={{ color: "rgba(255,255,255,0.3)" }}
+      >
+        {sub}
+      </p>
+    </div>
   );
 }

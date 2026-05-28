@@ -1,13 +1,33 @@
-import { useState } from 'react';
-import { Star, Download, ChevronLeft, Clock, Globe, BarChart3, Calendar, Tv, Heart, Share2, Play, QrCode } from 'lucide-react';
-import { motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
-import { SubjectInfo, MovieMetadata, Season } from '../types';
-import { OptimizedImage } from '../../../components/ui/OptimizedImage';
-import { formatDuration, formatRating, formatCount, formatYear } from '../../../utils/format';
-import { useWatchlistStore } from '../../../stores/useWatchlistStore';
-import toast from 'react-hot-toast';
-import UnifiedShareModal from '../../../components/UnifiedShareModal';
+import { useState, useEffect } from "react";
+import {
+  Star,
+  Download,
+  ChevronLeft,
+  Clock,
+  Globe,
+  BarChart3,
+  Calendar,
+  Tv,
+  Heart,
+  Share2,
+  Play,
+  X,
+  Loader2,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { useNavigate } from "react-router-dom";
+import { SubjectInfo, MovieMetadata, Season } from "../types";
+import { OptimizedImage } from "../../../components/ui/OptimizedImage";
+import {
+  formatDuration,
+  formatRating,
+  formatCount,
+  formatYear,
+} from "../../../utils/format";
+import { useWatchlistStore } from "../../../stores/useWatchlistStore";
+import { useYouTubeTrailer } from "../../../hooks/useYouTubeTrailer";
+import toast from "react-hot-toast";
+import UnifiedShareModal from "../../../components/UnifiedShareModal";
 
 interface MovieHeroProps {
   subject: SubjectInfo;
@@ -28,22 +48,28 @@ export const MovieHero = ({
   seasons = [],
   onOpenDownload,
   onOpenPlay,
-  playLabel = 'Watch Now',
+  playLabel = "Watch Now",
 }: MovieHeroProps) => {
   const navigate = useNavigate();
-  const genres = subject.genre?.split(',').map((g: string) => g.trim()).filter(Boolean) || [];
+  const genres =
+    subject.genre
+      ?.split(",")
+      .map((g: string) => g.trim())
+      .filter(Boolean) || [];
   const year = formatYear(subject.releaseDate);
   const duration = formatDuration(subject.duration);
 
   const addItem = useWatchlistStore((s) => s.addItem);
   const removeItem = useWatchlistStore((s) => s.removeItem);
-  const isInWatchlist = useWatchlistStore((s) => s.isInWatchlist(subject.subjectId || ''));
+  const isInWatchlist = useWatchlistStore((s) =>
+    s.isInWatchlist(subject.subjectId || ""),
+  );
 
   const toggleWatchlist = () => {
-    const id = subject.subjectId || '';
+    const id = subject.subjectId || "";
     if (isInWatchlist) {
       removeItem(id);
-      toast('Removed from Watchlist', { icon: '💔' });
+      toast("Removed from Watchlist", { icon: "💔" });
     } else {
       addItem({
         subjectId: id,
@@ -53,7 +79,7 @@ export const MovieHero = ({
         imdbRatingValue: subject.imdbRatingValue,
         releaseDate: subject.releaseDate,
       });
-      toast.success('Added to Watchlist');
+      toast.success("Added to Watchlist");
     }
   };
 
@@ -63,11 +89,14 @@ export const MovieHero = ({
       <motion.button
         initial={{ opacity: 0, x: -8 }}
         animate={{ opacity: 1, x: 0 }}
-        onClick={() => navigate('/')}
+        onClick={() => navigate("/")}
         className="inline-flex items-center gap-2 text-[var(--rf-text-muted)] hover:text-white transition-colors mb-8 cursor-pointer group"
         aria-label="Go Back"
       >
-        <ChevronLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+        <ChevronLeft
+          size={18}
+          className="group-hover:-translate-x-0.5 transition-transform"
+        />
         <span className="text-sm font-medium">Back</span>
       </motion.button>
 
@@ -92,13 +121,15 @@ export const MovieHero = ({
             <button
               onClick={toggleWatchlist}
               className={`absolute top-4 right-4 z-10 w-9 h-9 rounded-xl glass-3 flex items-center justify-center transition-all duration-300 ${
-                isInWatchlist 
-                  ? 'text-[var(--rf-red)] bg-black/60 border border-[var(--rf-red)]/40 shadow-lg shadow-[var(--rf-red)]/20 scale-105' 
-                  : 'text-white hover:scale-105 bg-black/40 border border-white/10 hover:bg-black/60'
+                isInWatchlist
+                  ? "text-[var(--rf-red)] bg-black/60 border border-[var(--rf-red)]/40 shadow-lg shadow-[var(--rf-red)]/20 scale-105"
+                  : "text-white hover:scale-105 bg-black/40 border border-white/10 hover:bg-black/60"
               }`}
-              title={isInWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'}
+              title={
+                isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist"
+              }
             >
-              <Heart size={15} fill={isInWatchlist ? 'currentColor' : 'none'} />
+              <Heart size={15} fill={isInWatchlist ? "currentColor" : "none"} />
             </button>
 
             {/* Poster Glow */}
@@ -116,7 +147,7 @@ export const MovieHero = ({
           {/* Badges Row */}
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <span className="badge glass text-[10px] py-1 px-3">
-              {isTvSeries ? '📺 TV Series' : '🎬 Movie'}
+              {isTvSeries ? "📺 TV Series" : "🎬 Movie"}
             </span>
             {year && (
               <span className="badge badge-quality py-1 px-3 text-[10px]">
@@ -194,7 +225,11 @@ export const MovieHero = ({
                       <Star
                         key={i}
                         size={12}
-                        className={i < Math.round(subject.imdbRatingValue / 2) ? 'fill-[var(--rf-gold)] text-[var(--rf-gold)]' : 'text-[var(--rf-text-dim)]'}
+                        className={
+                          i < Math.round(subject.imdbRatingValue / 2)
+                            ? "fill-[var(--rf-gold)] text-[var(--rf-gold)]"
+                            : "text-[var(--rf-text-dim)]"
+                        }
                       />
                     ))}
                   </div>
@@ -207,7 +242,13 @@ export const MovieHero = ({
           )}
 
           {/* Description — Expandable */}
-          <ExpandableDescription text={subject.description || metadata?.description || 'No description available for this title.'} />
+          <ExpandableDescription
+            text={
+              subject.description ||
+              metadata?.description ||
+              "No description available for this title."
+            }
+          />
 
           {/* ============ CTA BUTTONS ============ */}
           <CTAButtons
@@ -225,7 +266,14 @@ export const MovieHero = ({
 };
 
 /* Separated to keep the main component clean */
-function CTAButtons({ subject, coverUrl, isTvSeries, onOpenDownload, onOpenPlay, playLabel }: {
+function CTAButtons({
+  subject,
+  coverUrl,
+  isTvSeries,
+  onOpenDownload,
+  onOpenPlay,
+  playLabel,
+}: {
   subject: SubjectInfo;
   coverUrl?: string;
   isTvSeries: boolean;
@@ -234,15 +282,40 @@ function CTAButtons({ subject, coverUrl, isTvSeries, onOpenDownload, onOpenPlay,
   playLabel: string;
 }) {
   const [shareOpen, setShareOpen] = useState(false);
+  const [trailerOpen, setTrailerOpen] = useState(false);
+
+  const year = subject.releaseDate?.substring(0, 4);
+  const { videoId, isLoading, isUnavailable, getTrailer } = useYouTubeTrailer(
+    subject.title,
+    year,
+  );
+
+  const handleWatchTrailer = async () => {
+    // Only fetch when clicked for the first time [2]
+    const id = videoId || (await getTrailer());
+    if (id) {
+      setTrailerOpen(true);
+    }
+  };
+
+  // Close modal when pressing Escape [2]
+  useEffect(() => {
+    if (!trailerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTrailerOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [trailerOpen]);
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {/* Play & Download side-by-side with reduced font size */}
-      <div className="flex items-center gap-2">
+      {/* Play, Download & Trailer buttons grouped next to each other [2] */}
+      <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={onOpenPlay}
           aria-label="Stream Movie Now"
-          className="btn-primary text-xs px-5 py-3 md:text-sm md:px-7 md:py-3.5 bg-gradient-to-r from-red-600 to-rose-600 border-none shadow-[0_0_20px_rgba(225,29,72,0.2)] hover:shadow-[0_0_30px_rgba(225,29,72,0.4)] transition-all font-semibold flex items-center gap-1.5"
+          className="btn-primary text-xs px-5 py-3 md:text-sm md:px-7 md:py-3.5 bg-gradient-to-r from-red-600 to-rose-600 border-none shadow-[0_0_20px_rgba(225,29,72,0.2)] hover:shadow-[0_0_30px_rgba(225,29,72,0.4)] transition-all font-semibold flex items-center gap-1.5 cursor-pointer"
         >
           <Play size={15} className="fill-current" />
           <span>{playLabel}</span>
@@ -251,18 +324,34 @@ function CTAButtons({ subject, coverUrl, isTvSeries, onOpenDownload, onOpenPlay,
         <button
           onClick={onOpenDownload}
           aria-label="Open Download Options"
-          className="btn-glass text-xs px-5 py-3 md:text-sm md:px-6 md:py-3.5 hover:bg-white/10 font-semibold flex items-center gap-1.5"
+          className="btn-glass text-xs px-5 py-3 md:text-sm md:px-6 md:py-3.5 hover:bg-white/10 font-semibold flex items-center gap-1.5 cursor-pointer"
         >
           <Download size={15} />
           <span>Download</span>
         </button>
+
+        {/* Watch Trailer Button (Only rendered if trailer exists) [2] */}
+        {!isUnavailable && (
+          <button
+            onClick={handleWatchTrailer}
+            disabled={isLoading}
+            className="btn-glass text-xs px-5 py-3 md:text-sm md:px-6 md:py-3.5 hover:bg-white/10 font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 select-none transition-all"
+          >
+            {isLoading ? (
+              <Loader2 size={15} className="animate-spin text-white" />
+            ) : (
+              <Play size={15} className="text-white fill-white" />
+            )}
+            <span>{isLoading ? "Fetching..." : "Trailer"}</span>
+          </button>
+        )}
       </div>
 
       {/* Share button (icon only) */}
       <button
         onClick={() => setShareOpen(true)}
         aria-label="Share Options"
-        className="w-10 h-10 md:w-12 md:h-12 rounded-xl glass-2 flex items-center justify-center hover:bg-white/[0.08] transition-all duration-200 shrink-0 border border-white/[0.05]"
+        className="w-10 h-10 md:w-12 md:h-12 rounded-xl glass-2 flex items-center justify-center hover:bg-white/[0.08] transition-all duration-200 shrink-0 border border-white/[0.05] cursor-pointer"
         title="Share Content"
       >
         <Share2 size={16} />
@@ -274,11 +363,54 @@ function CTAButtons({ subject, coverUrl, isTvSeries, onOpenDownload, onOpenPlay,
         title={subject.title}
         coverUrl={coverUrl}
         rating={subject.imdbRatingValue}
-        year={subject.releaseDate?.substring(0, 4)}
+        year={year}
         genre={subject.genre}
         description={subject.description}
         url={window.location.href}
       />
+
+      {/* Centered Trailer Iframe Modal Overlay [2] */}
+      <AnimatePresence>
+        {trailerOpen && videoId && (
+          <div
+            className="fixed inset-0 z-[999] flex items-center justify-center p-4 select-none bg-black/85 backdrop-blur-sm"
+            onClick={() => setTrailerOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-4xl flex flex-col gap-3"
+            >
+              {/* Header with Title & Close button [2] */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs md:text-sm font-black text-white uppercase tracking-wider truncate max-w-[80%]">
+                  {subject.title} — Official Trailer
+                </h3>
+                <button
+                  onClick={() => setTrailerOpen(false)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-white/80 transition-colors cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* 16:9 Aspect Ratio Container [2] */}
+              <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/[0.06] shadow-2xl">
+                <iframe
+                  src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`}
+                  className="absolute inset-0 w-full h-full border-none"
+                  allow="autoplay; encrypted-media"
+                  allowFullScreen
+                  title={`${subject.title} Trailer Video`}
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -290,7 +422,9 @@ function ExpandableDescription({ text }: { text: string }) {
 
   return (
     <div className="mb-8 max-w-2xl">
-      <p className={`text-sm md:text-base text-[var(--rf-text-muted)] leading-relaxed transition-all duration-300 ${!expanded && isLong ? 'line-clamp-3' : ''}`}>
+      <p
+        className={`text-sm md:text-base text-[var(--rf-text-muted)] leading-relaxed transition-all duration-300 ${!expanded && isLong ? "line-clamp-3" : ""}`}
+      >
         {text}
       </p>
       {isLong && (
@@ -298,7 +432,7 @@ function ExpandableDescription({ text }: { text: string }) {
           onClick={() => setExpanded(!expanded)}
           className="mt-2 text-xs font-bold text-[var(--rf-red)] hover:text-[var(--rf-red)]/80 transition-colors flex items-center gap-1"
         >
-          {expanded ? 'Show Less ↑' : 'Read More ↓'}
+          {expanded ? "Show Less ↑" : "Read More ↓"}
         </button>
       )}
     </div>

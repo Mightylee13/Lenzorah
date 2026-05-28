@@ -4,7 +4,11 @@
  */
 
 // At the top with other imports:
-import MobileNav from "./components/MobileNav";import { useEffect, useState } from "react";
+import { usePurgeExpiredOffline } from "./hooks/usePurgeExpiredOffline";
+
+import ScrollToTopButton from "./components/ScrollToTopButton";
+import MobileNav from "./components/MobileNav";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
@@ -62,7 +66,7 @@ function ScrollToTop() {
 
 function AppContent() {
   const location = useLocation();
-
+ usePurgeExpiredOffline();
   const isWatchPage = location.pathname.startsWith("/watch");
   const isAdminPage = location.pathname.startsWith("/daratech");
 
@@ -73,23 +77,26 @@ function AppContent() {
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
-
     handleResize();
-
     window.addEventListener("resize", handleResize);
-
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // ── NEW: Poll MongoDB every 30s via Express API ───────────────────────────
+  // This makes maintenance mode sync across ALL devices in real time.
+  useEffect(() => {
+    const stopPolling = useMaintenanceStore.getState().startPolling();
+    return stopPolling;
+  }, []);
+
+  // ── Keep same-browser tabs in sync via localStorage (existing behaviour) ──
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "rf-maintenance") {
         useMaintenanceStore.persist.rehydrate();
       }
     };
-
     window.addEventListener("storage", handleStorageChange);
-
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
@@ -202,9 +209,12 @@ function AppContent() {
         {/* Footer */}
         {!isWatchPage && !isAdminPage && <Footer />}
       </div>
+      <ScrollToTopButton />
     </div>
   );
 }
+
+
 
 export default function App() {
   // Show splash once per browser session
@@ -214,7 +224,6 @@ export default function App() {
 
   const handleSplashComplete = () => {
     sessionStorage.setItem("lenzorah-splash-shown", "true");
-
     setSplashDone(true);
   };
 

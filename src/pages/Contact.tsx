@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 export default function Contact() {
   useSEO({
     title: 'Contact Us',
-    description: 'Get in touch with the RUNFlix team — Report bugs, suggest features, or send us a message.',
+    description: 'Get in touch with the Lenzorah team — Report bugs, suggest features, or send us a message.',
   });
 
   const [formData, setFormData] = useState({ name: '', email: '', subject: 'general', message: '' });
@@ -69,7 +69,7 @@ export default function Contact() {
 
   const openMailtoFallback = () => {
     const subjectLabel = subjectOptions.find(o => o.value === formData.subject)?.label || formData.subject;
-    const mailSubject = encodeURIComponent(`[RUNFlix Contact] ${subjectLabel}`);
+    const mailSubject = encodeURIComponent(`[Lenzorah Contact] ${subjectLabel}`);
     const mailBody = encodeURIComponent(
       `Name: ${formData.name}\nEmail: ${formData.email}\nSubject: ${subjectLabel}\n\nMessage:\n${formData.message}`
     );
@@ -194,7 +194,7 @@ export default function Contact() {
                 <Sparkles size={18} className="text-amber-400 mt-0.5 shrink-0" />
                 <div>
                   <h3 className="text-sm font-bold text-white mb-1">Feature Requests</h3>
-                  <p className="text-xs text-[var(--rf-text-muted)] leading-relaxed">Got an idea that would make RUNFlix better? We actively review and implement community suggestions.</p>
+                  <p className="text-xs text-[var(--rf-text-muted)] leading-relaxed">Got an idea that would make Lenzorah better? We actively review and implement community suggestions.</p>
                 </div>
               </div>
             </motion.div>

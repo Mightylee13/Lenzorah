@@ -1,13 +1,13 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Compass, Flame, Bookmark, History } from "lucide-react";
+import { Home, Compass, Flame, Bookmark, History,Trophy } from "lucide-react";
 import { cn } from "../utils/cn";
 
 const NAV_ITEMS = [
-  { icon: Home, label: "Home", path: "/" },
-  { icon: Compass, label: "Explore", path: "/explore" },
-  { icon: Flame, label: "Trending", path: "/trending" },
-  { icon: Bookmark, label: "Watchlist", path: "/watchlist" },
-  { icon: History, label: "History", path: "/history" },
+  { icon: Home,    label: "Home",     path: "/" },
+  { icon: Compass, label: "Explore",  path: "/explore" },
+  { icon: Trophy,  label: "Sports",   path: "/sports",   center: true },
+  { icon: Flame,   label: "Trending", path: "/trending" },
+  { icon: History, label: "History",  path: "/history" },
 ];
 
 export default function MobileNav() {

@@ -1,3 +1,4 @@
+import { usePageView } from "../hooks/useAnalytics";
 import { useQuery } from "@tanstack/react-query";
 import { fetchTrending, fetchHomepage } from "../api/client";
 import {
@@ -22,6 +23,7 @@ import { useSEO } from "../hooks/useSEO";
 
 export default function Home() {
   const navigate = useNavigate();
+usePageView("Home");
 
   useSEO({
     title: "Home",
@@ -69,6 +71,21 @@ export default function Home() {
     const others = rows.filter((r: any) => r !== pop);
     return { popularRow: pop, otherMovieRows: others };
   }, [hpData]);
+
+  // Safely extract the top 10 most popular movies [2]
+  const popularMovies = useMemo(() => {
+    // 1. Try retrieving the dedicated popular movies row
+    if (popularRow?.subjects?.length) {
+      return popularRow.subjects.slice(0, 10);
+    }
+    // 2. Fall back to filtering the trending data for movies (excluding TV series / type 2) [2]
+    if (trending?.length) {
+      return trending
+        .filter((m: any) => m.subjectType === 1 || m.subjectType !== 2)
+        .slice(0, 10);
+    }
+    return [];
+  }, [popularRow, trending]);
 
   // Hero banner rotation
   const [heroIndex, setHeroIndex] = useState(0);
@@ -315,6 +332,9 @@ export default function Home() {
         {/* Continue Browsing (Recently Viewed) */}
         <ContinueBrowsing />
 
+        {/* Netflix-style Top 10 Popular Movies Today Row [2] */}
+        <Top10Row movies={popularMovies} />
+
         {/* My Watchlist Preview */}
         <WatchlistPreview />
 
@@ -328,20 +348,6 @@ export default function Home() {
             {trending.map((movie: any, idx: number) => (
               <div
                 key={`${movie.subjectId}-trend-${idx}`}
-                className="snap-start"
-              >
-                <MovieCard movie={movie} index={idx} size="md" />
-              </div>
-            ))}
-          </MovieRow>
-        )}
-
-        {/* Popular Movies Row */}
-        {popularRow && (
-          <MovieRow key={popularRow.opId || "popular"} title={popularRow.title}>
-            {popularRow.subjects.map((movie: any, idx: number) => (
-              <div
-                key={`${movie.subjectId}-${popularRow.opId}-${idx}`}
                 className="snap-start"
               >
                 <MovieCard movie={movie} index={idx} size="md" />
@@ -366,44 +372,6 @@ export default function Home() {
             ))}
           </MovieRow>
         ))}
-
-        {/* BREATHTAKING WHATSAPP CAMPAIGN BANNER CARD */}
-        {/* <section className="px-6 sm:px-10 lg:px-14 py-4 select-none">
-          <div className="relative rounded-3xl bg-gradient-to-r from-emerald-950/20 via-[#121218] to-emerald-950/20 border border-emerald-500/10 p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center justify-between overflow-hidden shadow-xl"> */}
-            {/* Ambient glows inside card */}
-            {/* <div className="absolute top-0 left-0 w-32 h-32 rounded-full bg-emerald-500/5 blur-[50px] pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-32 h-32 rounded-full bg-green-500/5 blur-[50px] pointer-events-none" />
-
-            <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left"> */}
-              {/* Vibrant green WhatsApp bubble */}
-              {/* <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-green-400 text-white flex items-center justify-center shadow-lg shadow-emerald-950/30 shrink-0">
-                <span className="text-xl font-bold">🍿</span>
-              </div>
-              <div> */}
-                {/* <span className="inline-block px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-extrabold text-[8px] uppercase tracking-wider mb-1.5">
-                  EXCLUSIVE RECOMMENDATIONS
-                </span>
-                <h3 className="text-md md:text-lg font-black tracking-wide text-white uppercase">
-                  Join the Lenzorah Picks Channel!
-                </h3>
-                <p className="text-xs text-white/50 leading-relaxed mt-0.5 max-w-xl">
-                  Get premium handpicked movie suggestions, daily trending
-                  series cards, and high-speed direct download links delivered
-                  natively on WhatsApp!
-                </p>
-              </div>
-            </div> */}
-
-            {/* <a
-              href="https://whatsapp.com/channel/0029Vb8esUv3GJP6ymXaNF3g"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 active:scale-95 transition-all text-xs font-black uppercase tracking-wider text-white shadow-lg shrink-0 flex items-center gap-1.5"
-            >
-              🚀 Join Channel
-            </a>
-          </div>
-        </section> */}
 
         {/* Top Rated Section */}
         {trending && trending.length > 5 && (
@@ -645,7 +613,7 @@ function MoodSelector({ allMovies }: { allMovies: any[] }) {
         <div className="flex items-center gap-3 mb-1">
           <span className="text-lg">🎭</span>
           <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
-            RUN Mood
+            LENZ Mood
           </h2>
         </div>
         <p className="text-xs text-[var(--rf-text-dim)] ml-8">
@@ -757,5 +725,54 @@ function HiddenGems({ allMovies }: { allMovies: any[] }) {
         </div>
       ))}
     </MovieRow>
+  );
+}
+
+/* ============ TOP 10 TODAY ROW ============ */
+function Top10Row({ movies }: { movies: any[] }) {
+  if (!movies || movies.length === 0) return null;
+
+  return (
+    <div className="py-6 select-none">
+      {/* Section Header */}
+      <div className="px-6 sm:px-10 lg:px-14 mb-4">
+        <div className="flex items-center gap-3 mb-1">
+          <span className="text-lg">🏆</span>
+          <h2 className="text-base sm:text-lg font-black text-white tracking-tight uppercase">
+            Top 10 Movies Today 
+          </h2>
+        </div>
+        <p className="text-xs text-[var(--rf-text-dim)] ml-8">
+          The most watched movies in real time 
+        </p>
+      </div>
+
+      {/* Horizontal Scroll List */}
+      <div className="relative px-6 sm:px-10 lg:px-14">
+        <div
+          className="flex gap-14 md:gap-16 overflow-x-auto overflow-y-visible py-6 scroll-smooth snap-x snap-mandatory scrollbar-none"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {movies.map((movie: any, idx: number) => (
+            <div
+              key={`top10-${movie.subjectId}-${idx}`}
+              className="snap-start flex items-center relative pl-10 md:pl-12 min-w-[150px] md:min-w-[175px] shrink-0 group"
+            >
+              {/* Massive Number Overlay behind card */}
+              <div className="absolute left-[-15px] md:left-[-25px] bottom-[-5px] md:bottom-[-10px] select-none pointer-events-none z-0">
+                <span className="text-[120px] md:text-[160px] font-black tracking-tighter leading-none text-transparent [-webkit-text-stroke:2px_rgba(255,255,255,0.14)] group-hover:[-webkit-text-stroke:2px_rgba(229,9,20,0.55)] transition-all duration-500 ease-out">
+                  {idx + 1}
+                </span>
+              </div>
+
+              {/* Movie Card */}
+              <div className="relative z-10">
+                <MovieCard movie={movie} index={idx} size="md" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
