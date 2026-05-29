@@ -126,6 +126,15 @@ export function trackWatchlistRemove(subjectId: string, title: string) {
   });
 }
 
+// ── Generic Umami-style event tracker ─────────────────────────────────────────
+export function trackUmamiEvent(eventName: string, data?: Record<string, any>) {
+  post("/api/analytics/event", {
+    type: eventName,
+    ...data,
+    sessionId: getSessionId(),
+  });
+}
+
 // ── React hook — auto-tracks page view on mount ───────────────────────────────
 export function usePageView(title?: string) {
   useEffect(() => {
