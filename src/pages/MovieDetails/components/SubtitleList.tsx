@@ -38,13 +38,22 @@ export const SubtitleList = memo(({ subtitles, title }: SubtitleListProps) => {
                   title: title,
                   filename: formattedFilename,
                   type: 'subtitle',
+                  url: sub.url,
                 });
-                downloadSubtitle(sub.url, title, sub.lanName, ext, (p) => {
-                  setProgress(downloadId, p.progress, p.status === 'done' || p.status === 'error');
-                });
+                downloadSubtitle(
+                  sub.url,
+                  title,
+                  sub.lanName,
+                  ext,
+                  undefined,
+                  undefined,
+                  (p) => {
+                    setProgress(downloadId, p.progress, p.status === 'done' || p.status === 'error');
+                  }
+                );
               }}
               aria-label={`Download ${sub.lanName} subtitle`}
-              className="px-3 py-1.5 glass-2 rounded-lg text-[11px] font-medium text-[var(--rf-text-muted)] hover:text-white transition-all flex items-center gap-1.5 relative overflow-hidden active:scale-95"
+              className="px-3 py-1.5 glass-2 rounded-lg text-[11px] font-medium text-[var(--rf-text-muted)] hover:text-white transition-all flex items-center gap-1.5 relative  active:scale-95"
             >
               {isDownloading && (
                 <div

@@ -69,6 +69,7 @@ app.get("/api/maintenance", async (req, res) => {
     res.json({
       maintenance: doc?.value ?? false,
       message: doc?.message ?? "",
+      pageLocks: doc?.pageLocks ?? [],
       updatedAt: doc?.updatedAt ?? null,
     });
   } catch (err) {
@@ -86,7 +87,7 @@ app.post("/api/maintenance/set", async (req, res) => {
     return res.status(401).json({ error: "Invalid admin PIN" });
   }
 
-  const { maintenance, message } = req.body;
+  const { maintenance, message, pageLocks } = req.body;
 
   if (typeof maintenance !== "boolean") {
     return res.status(400).json({ error: "maintenance must be a boolean" });
@@ -99,29 +100,77 @@ app.post("/api/maintenance/set", async (req, res) => {
         $set: {
           value: maintenance,
           message: message || "",
+          pageLocks: pageLocks || [],
           updatedAt: new Date(),
         },
       },
       { upsert: true },
     );
 
-    console.log(`🔧  Maintenance set to: ${maintenance}`);
-    res.json({ success: true, maintenance, message });
+    console.log(
+      `🔧 Maintenance set to: ${maintenance}, page locks: ${pageLocks?.length || 0}`,
+    );
+    res.json({ success: true, maintenance, message, pageLocks });
   } catch (err) {
     console.error("POST /api/maintenance/set error:", err);
     res.status(500).json({ error: "Database error" });
   }
 });
 
+// ─── Active users (heartbeat) ────────────────────────────────────────────────
+// Frontend pings this every 30s to signal user is online
+const activeUsers = new Map(); // sessionId → lastSeen timestamp
+
+app.post("/api/analytics/heartbeat", (req, res) => {
+  const { sessionId } = req.body;
+  if (sessionId) {
+    activeUsers.set(sessionId, Date.now());
+    // Clean up sessions older than 90 seconds
+    const cutoff = Date.now() - 90_000;
+    for (const [id, ts] of activeUsers.entries()) {
+      if (ts < cutoff) activeUsers.delete(id);
+    }
+  }
+  res.json({ ok: true, activeCount: activeUsers.size });
+});
+
+app.get("/api/analytics/active", (req, res) => {
+  const pin = req.headers["x-admin-pin"];
+  if (pin !== ADMIN_PIN) return res.status(401).json({ error: "Unauthorized" });
+  const cutoff = Date.now() - 90_000;
+  for (const [id, ts] of activeUsers.entries()) {
+    if (ts < cutoff) activeUsers.delete(id);
+  }
+  res.json({ activeCount: activeUsers.size });
+});
+
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+// ─── Keep-alive ping (prevents Render free tier sleep) ───────────────────────
+// Pings itself every 14 minutes so the server never spins down
+function startKeepAlive() {
+  const selfUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  setInterval(
+    async () => {
+      try {
+        await fetch(`${selfUrl}/health`);
+        console.log("🟢 Keep-alive ping sent");
+      } catch {
+        console.log("⚠️  Keep-alive ping failed (server may be starting)");
+      }
+    },
+    14 * 60 * 1000,
+  ); // every 14 minutes
+}
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 connectDB()
   .then(() => {
-    app.listen(PORT, () =>
-      console.log(`🚀  Maintenance API running on port ${PORT}`),
-    );
+    app.listen(PORT, () => {
+      console.log(`🚀  Maintenance API running on port ${PORT}`);
+      startKeepAlive();
+    });
   })
   .catch((err) => {
     console.error("❌  Failed to connect to MongoDB:", err);
@@ -135,11 +184,26 @@ connectDB()
 // ─── POST /api/analytics/pageview ────────────────────────────────────────────
 app.post("/api/analytics/pageview", async (req, res) => {
   try {
-    const { path, title, referrer } = req.body;
+    const { path, title, referrer, sessionId } = req.body;
+
+    // Deduplicate: one count per sessionId per path per day
+    if (sessionId) {
+      const today = new Date().toISOString().split("T")[0];
+      const existing = await db.collection("analytics_pageviews").findOne({
+        sessionId,
+        path: path || "/",
+        day: today,
+      });
+      if (existing) return res.json({ ok: true, skipped: true });
+    }
+
+    const today = new Date().toISOString().split("T")[0];
     await db.collection("analytics_pageviews").insertOne({
       path: path || "/",
       title: title || "",
       referrer: referrer || "",
+      sessionId: sessionId || null,
+      day: today,
       timestamp: new Date(),
     });
     res.json({ ok: true });
@@ -151,11 +215,12 @@ app.post("/api/analytics/pageview", async (req, res) => {
 // ─── POST /api/analytics/event ───────────────────────────────────────────────
 app.post("/api/analytics/event", async (req, res) => {
   try {
-    const { type, subjectId, title } = req.body;
+    const { type, subjectId, title, sessionId } = req.body;
     await db.collection("analytics_events").insertOne({
       type: type || "unknown",
       subjectId: subjectId || null,
       title: title || "",
+      sessionId: sessionId || null,
       timestamp: new Date(),
     });
     res.json({ ok: true });
@@ -281,8 +346,19 @@ app.get("/api/analytics/summary", async (req, res) => {
         .toArray(),
     ]);
 
+    // Count unique session IDs (unique devices)
+    const uniqueVisitors = await db
+      .collection("analytics_pageviews")
+      .distinct("sessionId");
+
     res.json({
-      totals: { totalViews, viewsToday, viewsWeek, viewsMonth },
+      totals: {
+        totalViews,
+        viewsToday,
+        viewsWeek,
+        viewsMonth,
+        uniqueVisitors: uniqueVisitors.filter(Boolean).length,
+      },
       topPages,
       topMovies,
       eventCounts,

@@ -10,6 +10,7 @@
  * - Real MongoDB analytics via AnalyticsDashboard
  */
 
+import PageMaintenancePanel from "../components/PageMaintenancePanel";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchTrending, fetchSearch } from "../api/client";
@@ -1043,6 +1044,7 @@ export default function Daratech() {
             )}
 
             {/* ── SYSTEM ── */}
+            <PageMaintenancePanel />
             {activeWorkspace === "system" && (
               <div className="space-y-5">
                 {/* Maintenance */}

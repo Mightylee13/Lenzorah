@@ -30,7 +30,7 @@ async function post(path: string, body: object) {
 }
 
 // ── Session ID — persists across visits, unique per device ────────────────────
-function getSessionId(): string {
+export function getSessionId(): string {
   let id = localStorage.getItem("lenz_session_id");
   if (!id) {
     id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -126,20 +126,17 @@ export function trackWatchlistRemove(subjectId: string, title: string) {
   });
 }
 
-export function trackUmamiEvent(
-  event: string,
-  data?: Record<string, any>
-) {
-  post("/api/analytics/event", {
-    type: event,
-    ...data,
-    sessionId: getSessionId(),
-  });
-}
-
 // ── React hook — auto-tracks page view on mount ───────────────────────────────
 export function usePageView(title?: string) {
   useEffect(() => {
     trackPageView(title);
   }, [title]);
+}
+
+// ── Heartbeat — signals user is active every 30s ─────────────────────────────
+export function startHeartbeat(sessionId: string) {
+  const ping = () => post("/api/analytics/heartbeat", { sessionId });
+  ping(); // immediate ping on start
+  const id = setInterval(ping, 30_000);
+  return () => clearInterval(id); // return cleanup fn
 }

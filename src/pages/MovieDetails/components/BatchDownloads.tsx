@@ -95,11 +95,10 @@ export const BatchDownloads = memo(({
                 <button
                   key={q}
                   onClick={() => setSelectedQuality(q)}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
-                    isSelected
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${isSelected
                       ? 'bg-[var(--rf-red)] text-white shadow-md shadow-[var(--rf-red)]/20'
                       : 'glass-2 text-[var(--rf-text-muted)] hover:text-white'
-                  }`}
+                    }`}
                 >
                   {q}
                   <span className={`ml-1 text-[9px] ${isSelected ? 'text-white/60' : 'text-[var(--rf-text-dim)]'}`}>
@@ -138,11 +137,10 @@ export const BatchDownloads = memo(({
                 <button
                   key={lang}
                   onClick={() => setSelectedSubLang(lang)}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
-                    isSelected
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${isSelected
                       ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
                       : 'glass-2 text-[var(--rf-text-muted)] hover:text-white'
-                  }`}
+                    }`}
                 >
                   {lang}
                   <span className={`ml-1 text-[9px] ${isSelected ? 'text-white/60' : 'text-[var(--rf-text-dim)]'}`}>
@@ -192,7 +190,7 @@ interface BatchEpisodeCardProps {
   filterQuality: string;
   onDownloadSingle: (src: SourceItem, downloadId: string, episode: number) => void;
   setProgress: (id: string, progress: number, isComplete?: boolean) => void;
-  addToHistory: (item: { id: string; title: string; filename: string; quality?: string; type: 'movie' | 'subtitle' }) => void;
+  addToHistory: (item: { id: string; title: string; filename: string; quality?: string; type: 'movie' | 'subtitle'; url?: string }) => void;
   activeDownloads: Record<string, number>;
 }
 
@@ -221,14 +219,22 @@ const BatchEpisodeCard = memo(({
 
   const handleSubtitleDownload = (sub: any) => {
     const downloadId = `batch_sub_ep${ep.episode}_${sub.id || sub.lanName}`;
-    addToHistory({ id: downloadId, title, filename: `${title} - ${episodeLabel} - ${sub.lanName}`, type: 'subtitle' });
-    downloadSubtitle(sub.url, `${title}_${episodeLabel}`, sub.lanName, undefined, (p) => {
-      setProgress(downloadId, p.progress, p.status === 'done' || p.status === 'error');
-    });
+    addToHistory({ id: downloadId, title, filename: `${title} - ${episodeLabel} - ${sub.lanName}`, type: 'subtitle', url: sub.url });
+    downloadSubtitle(
+      sub.url,
+      title,
+      sub.lanName,
+      undefined,
+      episodeLabel,
+      undefined,
+      (p) => {
+        setProgress(downloadId, p.progress, p.status === 'done' || p.status === 'error');
+      }
+    );
   };
 
   return (
-    <div className="glass-2 rounded-xl overflow-hidden">
+    <div className="glass-2 rounded-xl ">
       {/* Episode Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--rf-border)]">
         <div className="flex items-center gap-2.5">
@@ -294,7 +300,7 @@ const BatchEpisodeCard = memo(({
                 <button
                   key={downloadId}
                   onClick={() => handleSubtitleDownload(sub)}
-                  className="px-2 py-1 glass-2 rounded-md text-[9px] font-medium text-[var(--rf-text-muted)] hover:text-blue-400 transition-all flex items-center gap-1 relative overflow-hidden active:scale-95"
+                  className="px-2 py-1 glass-2 rounded-md text-[9px] font-medium text-[var(--rf-text-muted)] hover:text-blue-400 transition-all flex items-center gap-1 relative  active:scale-95"
                 >
                   {isDownloading && <div className="absolute inset-0 bg-blue-500/10 pointer-events-none" style={{ width: `${progress}%` }} />}
                   <span className="relative z-10">{sub.lanName}</span>

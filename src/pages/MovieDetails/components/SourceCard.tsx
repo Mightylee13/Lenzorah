@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { SourceItem } from "../types";
 import { useDownloadStore } from "../hooks/useDownloadStore";
-import { useOfflineStore } from "../hooks/useOfflineStore";
+import { saveVideoOffline } from "../../../utils/saveOffline";
 import { formatFileSize } from "../../../utils/format";
 
 interface SourceCardProps {
@@ -54,13 +54,13 @@ export const SourceCard = memo(
     );
     const isDownloadingPhone = phoneProgress > 0;
 
-    const savingProgress = useOfflineStore(
+    const savingProgress = saveVideoOffline(
       (s) => s.savingProgress[downloadId] || 0,
     );
     const isSavingWeb = savingProgress > 0;
-    const offlineItems = useOfflineStore((s) => s.items);
-    const saveToWeb = useOfflineStore((s) => s.saveToWeb);
-    const isExpired = useOfflineStore((s) => s.isExpired);
+    const offlineItems = saveVideoOffline((s) => s.items);
+    const saveToWeb = saveVideoOffline((s) => s.saveToWeb);
+    const isExpired = saveVideoOffline((s) => s.isExpired);
 
     const savedItem = offlineItems.find((i) => i.id === downloadId);
     const isSavedWeb = !!savedItem && !isExpired(savedItem);
