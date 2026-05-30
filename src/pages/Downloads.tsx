@@ -16,15 +16,14 @@ import {
   MoreVertical,
   Ban,
   Play,
-  ExternalLink,
   ShieldCheck,
-  ShieldAlert,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   useDownloadStore,
   DownloadHistoryItem,
 } from "./MovieDetails/hooks/useDownloadStore";
+import { saveVideoOffline } from "../utils/saveOffline";
 import { getRelativeTime } from "../utils/format";
 import { useSEO } from "../hooks/useSEO";
 import { downloadFile } from "../utils/download";
@@ -86,17 +85,18 @@ export default function Downloads() {
     (state) => state.expireOldDownloads,
   );
 
-  // Run cleanup once on mount
   useEffect(() => {
     expireOldDownloads();
   }, [expireOldDownloads]);
 
-  // Tab State: 'offline' vs 'cloud'
+  // Also expire saveVideoOffline items on mount
+  useEffect(() => {
+    saveVideoOffline.getState().expireOld();
+  }, []);
+
   const [activeSection, setActiveSection] = useState<"offline" | "cloud">(
     "offline",
   );
-
-  // Groups and Expanded status
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     {},
   );
@@ -106,11 +106,7 @@ export default function Downloads() {
   const [batchDownloading, setBatchDownloading] = useState<
     Record<string, boolean>
   >({});
-
-  // Three dots menu state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-
-  // Storage Quota and Persistence states
   const [storageEstimate, setStorageEstimate] = useState<{
     used: string;
     total: string;
@@ -120,55 +116,44 @@ export default function Downloads() {
     useState<boolean>(false);
 
   useEffect(() => {
-    if (navigator.storage && navigator.storage.estimate) {
+    if (navigator.storage?.estimate) {
       navigator.storage
         .estimate()
         .then((estimate) => {
           const used = estimate.usage || 0;
           const total = estimate.quota || 1;
           const percent = Math.round((used / total) * 100);
-
-          const formatSize = (bytes: number) => {
-            if (bytes >= 1024 * 1024 * 1024)
-              return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-            return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
-          };
-
-          setStorageEstimate({
-            used: formatSize(used),
-            total: formatSize(total),
-            percent,
-          });
+          const fmt = (b: number) =>
+            b >= 1024 * 1024 * 1024
+              ? `${(b / (1024 * 1024 * 1024)).toFixed(1)} GB`
+              : `${(b / (1024 * 1024)).toFixed(0)} MB`;
+          setStorageEstimate({ used: fmt(used), total: fmt(total), percent });
         })
         .catch(() => {});
     }
-
-    if (navigator.storage && navigator.storage.persisted) {
+    if (navigator.storage?.persisted) {
       navigator.storage
         .persisted()
-        .then((persisted) => {
-          setIsStoragePersistent(persisted);
-        })
+        .then(setIsStoragePersistent)
         .catch(() => {});
     }
   }, [history]);
 
   const handleRequestPersistence = async () => {
-    if (navigator.storage && navigator.storage.persist) {
+    if (navigator.storage?.persist) {
       try {
         const persisted = await navigator.storage.persist();
         setIsStoragePersistent(persisted);
-        if (persisted) {
+        if (persisted)
           toast.success(
-            "App storage persistence approved! The OS will never auto-delete downloads.",
+            "Storage locked to device — OS will never auto-delete downloads.",
             { duration: 5000 },
           );
-        } else {
+        else
           toast("Persistence denied by browser/device settings.", {
             icon: "ℹ️",
           });
-        }
-      } catch (err) {
+      } catch {
         toast.error("Could not request persistence.");
       }
     } else {
@@ -176,23 +161,17 @@ export default function Downloads() {
     }
   };
 
-  // Click outside to close dropdowns
   useEffect(() => {
     if (!activeMenuId) return;
-    const handleDocumentClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        !target.closest(".dropdown-trigger") &&
-        !target.closest(".dropdown-menu")
-      ) {
+    const handler = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest(".dropdown-trigger") && !t.closest(".dropdown-menu"))
         setActiveMenuId(null);
-      }
     };
-    document.addEventListener("click", handleDocumentClick);
-    return () => document.removeEventListener("click", handleDocumentClick);
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
   }, [activeMenuId]);
 
-  // Partition history
   const cloudHistory = useMemo(
     () => history.filter((h) => !h.isOffline),
     [history],
@@ -202,12 +181,8 @@ export default function Downloads() {
     [history],
   );
 
-  const toggleGroup = (key: string) => {
-    setExpandedGroups((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
+  const toggleGroup = (key: string) =>
+    setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const handleDownloadAgain = async (item: {
     url?: string;
@@ -222,28 +197,18 @@ export default function Downloads() {
       toast("Direct link not saved. Opening movie details page...", {
         icon: "🔍",
       });
-      let subjectId = "";
       const parts = item.id.split("_");
-      if (parts[0] && /^\d+$/.test(parts[0])) {
-        subjectId = parts[0];
-      } else if (parts[2] && /^\d+$/.test(parts[2])) {
-        subjectId = parts[2];
-      }
-
-      if (subjectId) {
-        window.location.href = buildMoviePath(item.title, subjectId);
-      } else {
-        window.location.href = `/search?q=${encodeURIComponent(item.title)}`;
-      }
+      const subjectId = parts.find((p) => /^\d+$/.test(p)) || "";
+      window.location.href = subjectId
+        ? buildMoviePath(item.title, subjectId)
+        : `/search?q=${encodeURIComponent(item.title)}`;
       return;
     }
-
     setDownloadingIds((prev) => ({ ...prev, [item.id]: true }));
     try {
       await downloadFile(targetUrl, item.filename);
       toast.success(`Downloading ${item.filename}`);
-    } catch (err) {
-      console.error("Error re-downloading:", err);
+    } catch {
       toast.error("Failed to trigger download");
     } finally {
       setDownloadingIds((prev) => ({ ...prev, [item.id]: false }));
@@ -256,55 +221,45 @@ export default function Downloads() {
   };
 
   const handleBatchDownload = async (group: any) => {
-    if (!group.items || group.items.length === 0) return;
-    const key = group.key;
-    setBatchDownloading((prev) => ({ ...prev, [key]: true }));
+    if (!group.items?.length) return;
+    setBatchDownloading((prev) => ({ ...prev, [group.key]: true }));
     try {
       await Promise.all(
         group.items.map(async (item: any) => {
-          const targetUrl = item.downloadUrl || item.url || item.streamUrl;
-          if (targetUrl) {
-            await downloadFile(targetUrl, item.filename);
-          }
+          const url = item.downloadUrl || item.url || item.streamUrl;
+          if (url) await downloadFile(url, item.filename);
         }),
       );
       toast.success("Batch download started");
-    } catch (err) {
-      console.error("Batch download error:", err);
+    } catch {
       toast.error("Batch download failed");
     } finally {
-      setBatchDownloading((prev) => ({ ...prev, [key]: false }));
+      setBatchDownloading((prev) => ({ ...prev, [group.key]: false }));
     }
   };
 
-  // Grouping Cloud History Items
+  // ── Cloud grouping (unchanged) ────────────────────────────────────────────
   const processedCloudItems = useMemo(() => {
     const processed: ProcessedDownloadItem[] = [];
     const fileGroups: Record<string, typeof cloudHistory> = {};
-
     cloudHistory.forEach((item) => {
       const key = `${item.title.trim()}_${(item.filename || "").trim()}_${item.type}`;
-      if (!fileGroups[key]) {
-        fileGroups[key] = [];
-      }
+      if (!fileGroups[key]) fileGroups[key] = [];
       fileGroups[key].push(item);
     });
-
     const uniqueFiles = Object.entries(fileGroups).map(([key, items]) => {
       const sorted = [...items].sort((a, b) => b.timestamp - a.timestamp);
       const mostRecent = sorted[0];
       const qualities = Array.from(
         new Set(items.map((i) => i.quality).filter(Boolean)),
       );
-      const displayQuality =
-        qualities.length > 0 ? qualities.join("/") : mostRecent.quality;
-
       return {
         key,
         id: mostRecent.id,
         title: mostRecent.title,
         filename: mostRecent.filename,
-        quality: displayQuality,
+        quality:
+          qualities.length > 0 ? qualities.join("/") : mostRecent.quality,
         type: mostRecent.type,
         timestamp: mostRecent.timestamp,
         url: mostRecent.url,
@@ -314,64 +269,46 @@ export default function Downloads() {
         allIds: items.map((i) => i.id),
       };
     });
-
     const tvShowGroups: Record<string, typeof uniqueFiles> = {};
     const standaloneFiles: typeof uniqueFiles = [];
-
     uniqueFiles.forEach((file) => {
       const isTvEpisode =
         /S\d+E\d+/i.test(file.filename) ||
         file.filename.toLowerCase().includes("episode") ||
         file.id.startsWith("batch_");
-
       if (isTvEpisode) {
         const groupKey = `tv_${file.title}_${file.type}`;
-        if (!tvShowGroups[groupKey]) {
-          tvShowGroups[groupKey] = [];
-        }
+        if (!tvShowGroups[groupKey]) tvShowGroups[groupKey] = [];
         tvShowGroups[groupKey].push(file);
       } else {
         standaloneFiles.push(file);
       }
     });
-
-    // Group episodes across seasons and show a combined season range in the batch title
     Object.entries(tvShowGroups).forEach(([groupKey, episodes]) => {
-      // Extract season numbers from filenames like S1E2
       const seasonNumbers = episodes.map((ep) => {
-        const match = /S(\d+)E\d+/i.exec(ep.filename);
-        return match ? parseInt(match[1], 10) : 0;
+        const m = /S(\d+)E\d+/i.exec(ep.filename);
+        return m ? parseInt(m[1], 10) : 0;
       });
-      const minSeason = Math.min(...seasonNumbers);
-      const maxSeason = Math.max(...seasonNumbers);
-      const seasonLabel =
-        minSeason === maxSeason
-          ? `S${minSeason}`
-          : `S${minSeason}-${maxSeason}`;
-
-      // Sort episodes first by season then by episode number for proper order
-      const sortedEpisodes = [...episodes].sort((a, b) => {
-        const aMatch = /S(\d+)E(\d+)/i.exec(a.filename);
-        const bMatch = /S(\d+)E(\d+)/i.exec(b.filename);
-        const aSeason = aMatch ? parseInt(aMatch[1], 10) : 0;
-        const bSeason = bMatch ? parseInt(bMatch[1], 10) : 0;
-        const aEp = aMatch ? parseInt(aMatch[2], 10) : 0;
-        const bEp = bMatch ? parseInt(bMatch[2], 10) : 0;
-        if (aSeason !== bSeason) return aSeason - bSeason;
-        return aEp - bEp;
+      const minS = Math.min(...seasonNumbers),
+        maxS = Math.max(...seasonNumbers);
+      const seasonLabel = minS === maxS ? `S${minS}` : `S${minS}-${maxS}`;
+      const sorted = [...episodes].sort((a, b) => {
+        const am = /S(\d+)E(\d+)/i.exec(a.filename),
+          bm = /S(\d+)E(\d+)/i.exec(b.filename);
+        const as_ = am ? parseInt(am[1], 10) : 0,
+          bs = bm ? parseInt(bm[1], 10) : 0;
+        const ae = am ? parseInt(am[2], 10) : 0,
+          be = bm ? parseInt(bm[2], 10) : 0;
+        return as_ !== bs ? as_ - bs : ae - be;
       });
-
-      const first = sortedEpisodes[0];
-      const maxTimestamp = Math.max(...episodes.map((e) => e.timestamp));
-
+      const first = sorted[0];
       processed.push({
         key: groupKey,
         isBatch: true,
         type: first.type,
-        // Append season range to the title for clarity
         title: `${first.title} (${seasonLabel})`,
-        timestamp: maxTimestamp,
-        items: sortedEpisodes.map((ep) => ({
+        timestamp: Math.max(...episodes.map((e) => e.timestamp)),
+        items: sorted.map((ep) => ({
           id: ep.id,
           filename: ep.filename,
           quality: ep.quality,
@@ -384,7 +321,6 @@ export default function Downloads() {
         })),
       });
     });
-
     standaloneFiles.forEach((file) => {
       processed.push({
         key: file.key,
@@ -402,31 +338,24 @@ export default function Downloads() {
         allIds: file.allIds,
       });
     });
-
     return processed.sort((a, b) => b.timestamp - a.timestamp);
   }, [cloudHistory]);
 
-  // Grouping Offline History Items into 3D Stacks if multiple items exist for a title
+  // ── Offline grouping ──────────────────────────────────────────────────────
   const processedOfflineGroups = useMemo(() => {
     const groups: Record<string, typeof offlineHistory> = {};
     offlineHistory.forEach((item) => {
-      const key = item.title;
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(item);
+      if (!groups[item.title]) groups[item.title] = [];
+      groups[item.title].push(item);
     });
-
     return Object.entries(groups)
       .map(([title, items]) => {
-        const sortedItems = [...items].sort(
-          (a, b) => a.timestamp - b.timestamp,
-        );
+        const sorted = [...items].sort((a, b) => a.timestamp - b.timestamp);
         return {
           title,
           isStack: items.length > 1,
-          items: sortedItems,
-          type: sortedItems[0].type,
+          items: sorted,
+          type: sorted[0].type,
           timestamp: Math.max(...items.map((i) => i.timestamp)),
         };
       })
@@ -435,9 +364,7 @@ export default function Downloads() {
 
   const handlePlayOffline = (item: DownloadHistoryItem) => {
     if (!item.offlineComplete) {
-      toast.error(
-        "This file is still downloading. Lock active until 100% finished.",
-      );
+      toast.error("Still downloading — wait until 100% to play.");
       return;
     }
     navigate(`/watch-offline/${item.id}?autoplay=true`);
@@ -450,98 +377,77 @@ export default function Downloads() {
       return;
     }
     try {
-      // Trigger download natively inside the website without referring the user out
-      const anchor = document.createElement("a");
-      anchor.href = targetUrl;
-      anchor.download = item.filename || item.title;
-      anchor.style.display = "none";
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-
+      const a = document.createElement("a");
+      a.href = targetUrl;
+      a.download = item.filename || item.title;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       toast.success(`Triggered download for: ${item.filename || item.title}`);
-
-      // Auto-trigger download for associated offline subtitles if this is a video
       if (item.type === "movie") {
-        const cleanVideoId = item.id.replace("_offline", "");
-        const matchingSubs = history.filter(
-          (h) =>
-            h.isOffline && h.type === "subtitle" && h.id.includes(cleanVideoId),
+        const cleanId = item.id.replace("_offline", "");
+        const subs = history.filter(
+          (h) => h.isOffline && h.type === "subtitle" && h.id.includes(cleanId),
         );
-
-        for (let i = 0; i < matchingSubs.length; i++) {
-          const sub = matchingSubs[i];
+        for (const sub of subs) {
           const subUrl = sub.url || sub.downloadUrl || sub.streamUrl;
           if (subUrl) {
-            await new Promise((resolve) => setTimeout(resolve, 800)); // Stagger to prevent browser blocking
-            const subAnchor = document.createElement("a");
-            subAnchor.href = subUrl;
-            subAnchor.download = sub.filename;
-            subAnchor.style.display = "none";
-            document.body.appendChild(subAnchor);
-            subAnchor.click();
-            document.body.removeChild(subAnchor);
-            toast.success(`Triggered subtitle download: ${sub.filename}`);
+            await new Promise((r) => setTimeout(r, 800));
+            const sa = document.createElement("a");
+            sa.href = subUrl;
+            sa.download = sub.filename;
+            sa.style.display = "none";
+            document.body.appendChild(sa);
+            sa.click();
+            document.body.removeChild(sa);
           }
         }
       }
-    } catch (err) {
-      console.error("Save to device failed:", err);
+    } catch {
       toast.error("Failed to trigger download.");
     }
   };
 
   const handleSaveAllToPhone = async (items: DownloadHistoryItem[]) => {
     let count = 0;
-    // Collect all unique video ids to fetch subtitles for later
     const videoIds: string[] = [];
-
     for (const item of items) {
-      const targetUrl = item.downloadUrl || item.url || item.streamUrl;
-      if (targetUrl) {
-        if (item.type === "movie") {
+      const url = item.downloadUrl || item.url || item.streamUrl;
+      if (url) {
+        if (item.type === "movie")
           videoIds.push(item.id.replace("_offline", ""));
-        }
-
-        const anchor = document.createElement("a");
-        anchor.href = targetUrl;
-        anchor.download = item.filename || item.title;
-        anchor.style.display = "none";
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = item.filename || item.title;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         count++;
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
-
-    // Auto-trigger download for associated offline subtitles for all videos in batch
     for (const vidId of videoIds) {
-      const matchingSubs = history.filter(
+      const subs = history.filter(
         (h) => h.isOffline && h.type === "subtitle" && h.id.includes(vidId),
       );
-
-      for (const sub of matchingSubs) {
+      for (const sub of subs) {
         const subUrl = sub.url || sub.downloadUrl || sub.streamUrl;
         if (subUrl) {
-          const subAnchor = document.createElement("a");
-          subAnchor.href = subUrl;
-          subAnchor.download = sub.filename;
-          subAnchor.style.display = "none";
-          document.body.appendChild(subAnchor);
-          subAnchor.click();
-          document.body.removeChild(subAnchor);
-
+          const a = document.createElement("a");
+          a.href = subUrl;
+          a.download = sub.filename;
+          a.style.display = "none";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
           count++;
-          await new Promise((resolve) => setTimeout(resolve, 800));
+          await new Promise((r) => setTimeout(r, 800));
         }
       }
     }
-
-    toast.success(
-      `Triggered download for all ${count} files (including subtitles)!`,
-    );
+    toast.success(`Triggered download for all ${count} files!`);
   };
 
   return (
@@ -552,11 +458,10 @@ export default function Downloads() {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="w-full relative"
       >
-        {/* Ambient background glows */}
         <div className="absolute top-10 left-10 w-[200px] h-[200px] bg-cyan-500/5 blur-[90px] rounded-full pointer-events-none" />
         <div className="absolute bottom-10 right-10 w-[300px] h-[300px] bg-blue-500/5 blur-[120px] rounded-full pointer-events-none" />
 
-        {/* Header Panel */}
+        {/* Header */}
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 pb-6 border-b border-white/[0.04]">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
@@ -565,32 +470,28 @@ export default function Downloads() {
               </span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight flex items-center gap-3">
-              <HardDrive size={28} className="text-cyan-400" />
-              My Downloads
+              <HardDrive size={28} className="text-cyan-400" /> My Downloads
             </h1>
             <p className="text-xs text-[var(--rf-text-dim)] font-medium mt-1">
               Access your containerized offline content or high-speed cloud
               download records.
             </p>
           </div>
-
           {history.length > 0 && (
-            <div className="flex items-center gap-4 self-start md:self-auto shrink-0">
-              <button
-                onClick={clearHistory}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/[0.02] hover:bg-red-500/10 border border-white/5 hover:border-red-500/20 text-xs font-bold text-[var(--rf-text-muted)] hover:text-white transition-all active:scale-95 group cursor-pointer"
-              >
-                <Trash2
-                  size={13}
-                  className="text-white/40 group-hover:text-[var(--rf-red)] transition-colors"
-                />
-                Clear All
-              </button>
-            </div>
+            <button
+              onClick={clearHistory}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/[0.02] hover:bg-red-500/10 border border-white/5 hover:border-red-500/20 text-xs font-bold text-[var(--rf-text-muted)] hover:text-white transition-all active:scale-95 group cursor-pointer self-start md:self-auto shrink-0"
+            >
+              <Trash2
+                size={13}
+                className="text-white/40 group-hover:text-[var(--rf-red)] transition-colors"
+              />{" "}
+              Clear All
+            </button>
           )}
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Tabs */}
         <div className="relative z-10 flex items-center p-1.5 rounded-2xl bg-black/40 border border-white/[0.05] shadow-inner mb-8 max-w-md">
           <button
             onClick={() => setActiveSection("offline")}
@@ -601,8 +502,7 @@ export default function Downloads() {
                 : "text-[var(--rf-text-dim)] hover:text-white hover:bg-white/[0.02]",
             )}
           >
-            <HardDrive size={13} />
-            Offline Storage ({offlineHistory.length})
+            <HardDrive size={13} /> Offline Storage ({offlineHistory.length})
           </button>
           <button
             onClick={() => setActiveSection("cloud")}
@@ -613,15 +513,13 @@ export default function Downloads() {
                 : "text-[var(--rf-text-dim)] hover:text-white hover:bg-white/[0.02]",
             )}
           >
-            <DownloadIcon size={13} />
-            Cloud History ({cloudHistory.length})
+            <DownloadIcon size={13} /> Cloud History ({cloudHistory.length})
           </button>
         </div>
 
-        {/* SECTION 1: OFFLINE DOWNLOADS CONTAINER */}
+        {/* OFFLINE SECTION */}
         {activeSection === "offline" && (
           <div className="relative z-10 space-y-6 mb-10">
-            {/* Sandboxed PWA Storage Status & Request Persistence */}
             {storageEstimate && (
               <div className="p-5 rounded-3xl border border-white/[0.04] bg-[#07070a]/60 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -656,19 +554,17 @@ export default function Downloads() {
                   </div>
                   {!isStoragePersistent && (
                     <p className="text-[9px] text-[var(--rf-text-dim)] font-medium mt-2 leading-relaxed">
-                      ⚠️ Transiency Alert: Your phone OS may automatically clean
-                      up offline files when disk space runs low.
+                      ⚠️ Transiency Alert: Your OS may auto-clean offline files
+                      when disk space runs low.
                     </p>
                   )}
                 </div>
-
                 {!isStoragePersistent && (
                   <button
                     onClick={handleRequestPersistence}
                     className="flex items-center justify-center gap-2 h-9 px-4 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-300 text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shrink-0 cursor-pointer"
                   >
-                    <ShieldCheck size={13} />
-                    Lock to Phone Storage
+                    <ShieldCheck size={13} /> Lock to Phone Storage
                   </button>
                 )}
               </div>
@@ -687,43 +583,35 @@ export default function Downloads() {
                   No offline storage containers
                 </h3>
                 <p className="text-xs text-[var(--rf-text-dim)] max-w-xs mx-auto leading-relaxed">
-                  Use the "Save Offline" mode in the Movie or Series download
-                  modal to save high-fidelity containerized assets right here!
+                  Use "Save Offline" in the download modal to save content here.
                 </p>
               </motion.div>
             ) : (
               <div className="space-y-6">
                 {processedOfflineGroups.map((group) => {
                   const isExpanded = !!expandedGroups[group.title];
-
                   if (group.isStack) {
-                    // Overlapping 3D stack for Multiple items / Batch
-                    const downloadingItems = group.items.filter(
+                    const downloading = group.items.filter(
                       (i) => !i.offlineComplete,
                     );
-                    const hasActiveDownloads = downloadingItems.length > 0;
-                    const avgProgress =
-                      downloadingItems.length > 0
-                        ? Math.round(
-                            downloadingItems.reduce(
-                              (acc, i) => acc + (i.offlineProgress || 0),
-                              0,
-                            ) / downloadingItems.length,
-                          )
-                        : 0;
-
+                    const hasActive = downloading.length > 0;
+                    const avgProgress = hasActive
+                      ? Math.round(
+                          downloading.reduce(
+                            (a, i) => a + (i.offlineProgress || 0),
+                            0,
+                          ) / downloading.length,
+                        )
+                      : 0;
                     return (
                       <div key={group.title} className="relative z-10">
-                        {/* 3D layers underneath when NOT expanded */}
                         {!isExpanded && (
                           <>
                             <div className="absolute inset-0 bg-[#0a0a0c]/80 border border-white/[0.03] rounded-3xl translate-y-3.5 scale-[0.94] -z-20 blur-[1px] h-full" />
                             <div className="absolute inset-0 bg-[#121216]/90 border border-white/[0.04] rounded-3xl translate-y-1.5 scale-[0.97] -z-10 h-full" />
                           </>
                         )}
-
                         <div className="rounded-3xl border border-white/[0.06] bg-[#121216]/95 hover:border-cyan-500/25 transition-all shadow-xl backdrop-blur-3xl">
-                          {/* Header / Summary Card */}
                           <div
                             onClick={() => toggleGroup(group.title)}
                             className="flex items-center justify-between p-5 cursor-pointer hover:bg-white/[0.02] transition-colors relative select-none"
@@ -742,7 +630,6 @@ export default function Downloads() {
                                   </div>
                                 )}
                               </div>
-
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap mb-1">
                                   <h4 className="font-black text-white text-xs sm:text-sm line-clamp-1 break-words leading-snug">
@@ -757,15 +644,14 @@ export default function Downloads() {
                                     {group.items.length} container files
                                   </span>
                                   <span className="shrink-0 flex items-center gap-1 text-[10px]">
-                                    <Clock size={10} />
-                                    Updated {getRelativeTime(group.timestamp)}
+                                    <Clock size={10} /> Updated{" "}
+                                    {getRelativeTime(group.timestamp)}
                                   </span>
                                 </div>
-
-                                {hasActiveDownloads && (
+                                {hasActive && (
                                   <div className="flex items-center gap-2 mt-2.5 w-full max-w-xs">
                                     <span className="text-[9px] font-black text-cyan-400 shrink-0">
-                                      Downloading ({avgProgress}%)
+                                      Saving offline ({avgProgress}%)
                                     </span>
                                     <div className="flex-1 bg-white/5 rounded-full h-1.5 overflow-hidden border border-white/[0.04] relative shrink-0">
                                       <div
@@ -777,8 +663,6 @@ export default function Downloads() {
                                 )}
                               </div>
                             </div>
-
-                            {/* Dropdown controls & Three Dots */}
                             <div
                               className="flex items-center gap-2 shrink-0 ml-3 relative z-50"
                               onClick={(e) => e.stopPropagation()}
@@ -797,8 +681,6 @@ export default function Downloads() {
                                 >
                                   <MoreVertical size={16} />
                                 </button>
-
-                                {/* Dropdown menu for Stack */}
                                 <AnimatePresence>
                                   {activeMenuId === group.title && (
                                     <motion.div
@@ -837,7 +719,6 @@ export default function Downloads() {
                                   )}
                                 </AnimatePresence>
                               </div>
-
                               <button
                                 onClick={() => toggleGroup(group.title)}
                                 className="p-2.5 rounded-2xl text-white/40 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer"
@@ -850,8 +731,6 @@ export default function Downloads() {
                               </button>
                             </div>
                           </div>
-
-                          {/* Expanded sub items */}
                           {isExpanded && (
                             <div className="border-t border-white/[0.04] bg-white/[0.005] divide-y divide-white/[0.03] rounded-b-3xl overflow-hidden">
                               {group.items.map((item) => (
@@ -872,7 +751,6 @@ export default function Downloads() {
                       </div>
                     );
                   } else {
-                    // Single Item Card
                     const item = group.items[0];
                     return (
                       <div
@@ -897,7 +775,7 @@ export default function Downloads() {
           </div>
         )}
 
-        {/* SECTION 2: STANDARD CLOUD HISTORY */}
+        {/* CLOUD SECTION */}
         {activeSection === "cloud" && (
           <div className="relative z-10 space-y-4 mb-10">
             {cloudHistory.length === 0 ? (
@@ -913,8 +791,8 @@ export default function Downloads() {
                   No cloud download records
                 </h3>
                 <p className="text-xs text-[var(--rf-text-dim)] max-w-xs mx-auto leading-relaxed">
-                  Your regular browser-triggered direct downloads history will
-                  be kept logged here.
+                  Your regular browser-triggered direct downloads will be logged
+                  here.
                 </p>
               </motion.div>
             ) : (
@@ -922,15 +800,14 @@ export default function Downloads() {
                 {processedCloudItems.map((group, idx) => {
                   const isExpanded = !!expandedGroups[group.key];
                   const totalBatchCount = group.items
-                    ? group.items.reduce((sum, item) => sum + item.count, 0)
+                    ? group.items.reduce((s, i) => s + i.count, 0)
                     : 0;
                   const uniqueBatchCount = group.items ? group.items.length : 0;
                   const allIdsInGroup = group.isBatch
                     ? group.items
-                      ? group.items.flatMap((item) => item.allIds)
+                      ? group.items.flatMap((i) => i.allIds)
                       : []
                     : group.allIds || [group.id!];
-
                   return (
                     <motion.div
                       key={group.key}
@@ -943,7 +820,6 @@ export default function Downloads() {
                       }}
                       className="rounded-3xl border border-white/[0.04] bg-white/[0.01] hover:border-white/[0.08] transition-all shadow-lg backdrop-blur-xl"
                     >
-                      {/* Standalone Cloud Item */}
                       {!group.isBatch ? (
                         <div className="flex items-center justify-between p-5 relative select-none">
                           <div className="flex items-center gap-4 min-w-0 flex-1">
@@ -961,7 +837,6 @@ export default function Downloads() {
                                 <FileText size={18} />
                               )}
                             </div>
-
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap mb-1">
                                 <h4 className="font-bold text-white text-sm truncate leading-snug">
@@ -989,7 +864,6 @@ export default function Downloads() {
                               </div>
                             </div>
                           </div>
-
                           <div className="flex items-center gap-2 shrink-0 ml-3">
                             <button
                               onClick={() =>
@@ -1001,8 +875,7 @@ export default function Downloads() {
                                 })
                               }
                               disabled={downloadingIds[group.id!]}
-                              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white transition-all active:scale-95 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] cursor-pointer"
-                              title="Download Again"
+                              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white transition-all active:scale-95 cursor-pointer"
                             >
                               <div className="relative flex items-center justify-center shrink-0">
                                 <RotateCw size={13} className="text-red-400" />
@@ -1015,20 +888,17 @@ export default function Downloads() {
                                 Redownload
                               </span>
                             </button>
-
                             <button
                               onClick={() =>
                                 handleDeleteMultiple(allIdsInGroup)
                               }
                               className="p-2.5 rounded-2xl text-[var(--rf-text-dim)] hover:text-red-400 hover:bg-red-400/5 transition-all active:scale-90 cursor-pointer"
-                              title="Remove Record"
                             >
                               <Trash2 size={15} />
                             </button>
                           </div>
                         </div>
                       ) : (
-                        /* Collapsible Series/Sub Batch for Cloud */
                         <div>
                           <div
                             onClick={() => toggleGroup(group.key)}
@@ -1049,7 +919,6 @@ export default function Downloads() {
                                   <FileText size={18} />
                                 )}
                               </div>
-
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap mb-1">
                                   <h4 className="font-bold text-white text-sm truncate leading-snug">
@@ -1075,7 +944,6 @@ export default function Downloads() {
                                 </div>
                               </div>
                             </div>
-
                             <div
                               className="flex items-center gap-2 shrink-0 ml-3"
                               onClick={(e) => e.stopPropagation()}
@@ -1085,16 +953,13 @@ export default function Downloads() {
                                   handleDeleteMultiple(allIdsInGroup)
                                 }
                                 className="p-2.5 rounded-2xl text-[var(--rf-text-dim)] hover:text-red-400 hover:bg-red-400/5 transition-all active:scale-90 cursor-pointer"
-                                title="Delete Batch"
                               >
                                 <Trash2 size={15} />
                               </button>
-
                               <button
                                 onClick={() => handleBatchDownload(group)}
                                 disabled={batchDownloading[group.key]}
-                                className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white transition-all active:scale-95 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] cursor-pointer"
-                                title="Batch Download All"
+                                className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white transition-all active:scale-95 cursor-pointer"
                               >
                                 {batchDownloading[group.key] ? (
                                   <Loader2
@@ -1117,7 +982,6 @@ export default function Downloads() {
                                   Download All
                                 </span>
                               </button>
-
                               <button
                                 onClick={() => toggleGroup(group.key)}
                                 className="p-2.5 rounded-2xl text-white/40 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer"
@@ -1130,82 +994,75 @@ export default function Downloads() {
                               </button>
                             </div>
                           </div>
-
                           {isExpanded && (
                             <div className="border-t border-white/[0.04] bg-white/[0.005] divide-y divide-white/[0.03]">
-                              {group.items?.map((subItem) => {
-                                const isSubDownloading =
-                                  !!downloadingIds[subItem.id];
-                                return (
-                                  <div
-                                    key={subItem.id}
-                                    className="flex items-center justify-between py-3.5 px-6 hover:bg-white/[0.02] transition-colors"
-                                  >
-                                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
-                                      <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                                          <span className="text-xs font-bold text-white/80 truncate block">
-                                            {subItem.count > 1 && (
-                                              <span className="text-red-400 font-black mr-1.5">
-                                                {subItem.count}x
-                                              </span>
-                                            )}
-                                            {subItem.filename}
-                                          </span>
-                                          {subItem.quality && (
-                                            <span className="badge badge-quality text-[8px] py-0 px-1 font-black">
-                                              {subItem.quality}
+                              {group.items?.map((subItem) => (
+                                <div
+                                  key={subItem.id}
+                                  className="flex items-center justify-between py-3.5 px-6 hover:bg-white/[0.02] transition-colors"
+                                >
+                                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                                        <span className="text-xs font-bold text-white/80 truncate block">
+                                          {subItem.count > 1 && (
+                                            <span className="text-red-400 font-black mr-1.5">
+                                              {subItem.count}x
                                             </span>
                                           )}
-                                        </div>
-                                        <span className="text-[10px] text-[var(--rf-text-dim)] font-semibold flex items-center gap-1">
-                                          <Clock size={8} />
-                                          {getRelativeTime(subItem.timestamp)}
+                                          {subItem.filename}
                                         </span>
+                                        {subItem.quality && (
+                                          <span className="badge badge-quality text-[8px] py-0 px-1 font-black">
+                                            {subItem.quality}
+                                          </span>
+                                        )}
                                       </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                                      <button
-                                        onClick={() =>
-                                          handleDownloadAgain({
-                                            url: subItem.url,
-                                            title: group.title,
-                                            filename: subItem.filename,
-                                            id: subItem.id,
-                                          })
-                                        }
-                                        disabled={isSubDownloading}
-                                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.05] text-[10px] font-bold text-white transition-all active:scale-95 shrink-0 cursor-pointer"
-                                      >
-                                        <div className="relative flex items-center justify-center shrink-0">
-                                          <RotateCw
-                                            size={11}
-                                            className="text-red-400"
-                                          />
-                                          <ArrowDown
-                                            size={6}
-                                            className="absolute text-red-400"
-                                          />
-                                        </div>
-                                        <span className="hidden xs:inline ml-1">
-                                          Redownload
-                                        </span>
-                                      </button>
-
-                                      <button
-                                        onClick={() =>
-                                          handleDeleteMultiple(subItem.allIds)
-                                        }
-                                        className="p-2 rounded-xl text-[var(--rf-text-dim)] hover:text-red-400 hover:bg-red-400/5 transition-all active:scale-90 cursor-pointer"
-                                      >
-                                        <Trash2 size={13} />
-                                      </button>
+                                      <span className="text-[10px] text-[var(--rf-text-dim)] font-semibold flex items-center gap-1">
+                                        <Clock size={8} />
+                                        {getRelativeTime(subItem.timestamp)}
+                                      </span>
                                     </div>
                                   </div>
-                                );
-                              })}
+                                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                                    <button
+                                      onClick={() =>
+                                        handleDownloadAgain({
+                                          url: subItem.url,
+                                          title: group.title,
+                                          filename: subItem.filename,
+                                          id: subItem.id,
+                                        })
+                                      }
+                                      disabled={!!downloadingIds[subItem.id]}
+                                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.05] text-[10px] font-bold text-white transition-all active:scale-95 shrink-0 cursor-pointer"
+                                    >
+                                      <div className="relative flex items-center justify-center shrink-0">
+                                        <RotateCw
+                                          size={11}
+                                          className="text-red-400"
+                                        />
+                                        <ArrowDown
+                                          size={6}
+                                          className="absolute text-red-400"
+                                        />
+                                      </div>
+                                      <span className="hidden xs:inline ml-1">
+                                        Redownload
+                                      </span>
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        handleDeleteMultiple(subItem.allIds)
+                                      }
+                                      className="p-2 rounded-xl text-[var(--rf-text-dim)] hover:text-red-400 hover:bg-red-400/5 transition-all active:scale-90 cursor-pointer"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -1218,7 +1075,7 @@ export default function Downloads() {
           </div>
         )}
 
-        {/* Speed & Optimization Setup Guide */}
+        {/* Info panel */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1226,21 +1083,15 @@ export default function Downloads() {
           className="relative z-10 rounded-3xl p-6 md:p-8 border border-white/[0.04] bg-white/[0.01] shadow-2xl backdrop-blur-3xl mt-12"
         >
           <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl -z-10 pointer-events-none" />
-
           <h3 className="text-sm md:text-base font-black uppercase tracking-widest text-white/90 mb-6 flex items-center gap-2 pb-3 border-b border-white/[0.04]">
             <Sparkles size={16} className="text-cyan-400 animate-pulse" /> Speed
             & Storage Operations
           </h3>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             <div className="space-y-4">
-              <h4 className="text-xs font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+              <h4 className="text-xs font-black uppercase tracking-wider text-cyan-400">
                 ⚡ Offline Storage Limits
               </h4>
-              <p className="text-xs text-[var(--rf-text-muted)] leading-relaxed">
-                Runflix premium offline storage containers are isolated inside
-                highly secure in-app cache contexts.
-              </p>
               <ul className="space-y-3 text-[11px] text-[var(--rf-text-dim)] font-semibold">
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-400 mt-0.5 shrink-0">✔</span>
@@ -1248,8 +1099,8 @@ export default function Downloads() {
                     <strong className="text-white/80">
                       30 Days Storage Lifetime:
                     </strong>{" "}
-                    Every offline file has a strict 30-day container lease,
-                    after which it automatically expires to save device space.
+                    Every offline file auto-expires after 30 days to save device
+                    space.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
@@ -1258,20 +1109,16 @@ export default function Downloads() {
                     <strong className="text-white/80">
                       Instant playability:
                     </strong>{" "}
-                    Plays containerized media without internet buffering,
-                    directly bypassing local bandwidth fluctuations.
+                    Plays without internet buffering once the blob is fully
+                    saved.
                   </span>
                 </li>
               </ul>
             </div>
-
             <div className="space-y-4">
-              <h4 className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+              <h4 className="text-xs font-black uppercase tracking-wider text-blue-400">
                 🎬 Transfer & Playback Setup
               </h4>
-              <p className="text-xs text-[var(--rf-text-muted)] leading-relaxed">
-                Export files directly to phone or open them natively:
-              </p>
               <ul className="space-y-3 text-[11px] text-[var(--rf-text-dim)] font-semibold">
                 <li className="flex items-start gap-2">
                   <span className="text-blue-400 mt-0.5 shrink-0">✔</span>
@@ -1279,8 +1126,8 @@ export default function Downloads() {
                     <strong className="text-white/80">
                       Save to Phone Storage:
                     </strong>{" "}
-                    Clicking the three dots allows you to export files outside
-                    the sandbox directly to your phone's native storage.
+                    Use the three-dot menu to export files to your device's
+                    native storage.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
@@ -1289,9 +1136,8 @@ export default function Downloads() {
                     <strong className="text-white/80">
                       VLC Audio/Subs Support:
                     </strong>{" "}
-                    If you export to your phone, play using VLC player for
-                    perfect audio-channel shifting and SRT external subtitle
-                    synchrony.
+                    Use VLC player for perfect audio-channel shifting and SRT
+                    subtitle sync.
                   </span>
                 </li>
               </ul>
@@ -1303,7 +1149,7 @@ export default function Downloads() {
   );
 }
 
-/* OFFLINE INNER ITEM COMPONENT */
+/* ── OfflineRowItem ──────────────────────────────────────────────────────── */
 interface OfflineRowItemProps {
   item: DownloadHistoryItem;
   cancelDownload: (id: string) => void;
@@ -1323,13 +1169,25 @@ function OfflineRowItem({
   activeMenuId,
   setActiveMenuId,
 }: OfflineRowItemProps) {
-  const isComplete = item.offlineComplete;
-  const progress = item.offlineProgress || 0;
+  // Simulated UI progress from useDownloadStore
+  const storeProgress = item.offlineProgress || 0;
+
+  // Real blob fetch progress from saveVideoOffline (keyed by offlineSourceId)
+  const blobProgress = saveVideoOffline(
+    (s) => s.savingProgress[item.offlineSourceId || ""] || 0,
+  );
+
+  // Show the higher of the two — blob fetch is the real progress,
+  // store simulation catches up visually while blob is still fetching
+  const progress = Math.max(storeProgress, blobProgress);
+
+  // Only truly complete when BOTH the store says done AND blob is saved (blobProgress === 0 means finished/not started)
+  const blobDone = blobProgress === 0 || blobProgress >= 100;
+  const isComplete = !!item.offlineComplete && blobDone;
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 gap-4 relative select-none pr-12 sm:pr-5">
       <div className="flex items-center gap-4 min-w-0 flex-1">
-        {/* Play overlay on movie thumbnail image */}
         <div className="relative w-11 h-16 rounded-xl overflow-hidden shrink-0 bg-white/5 border border-white/10 shadow-md group flex items-center justify-center">
           {item.coverUrl ? (
             <img
@@ -1353,7 +1211,6 @@ function OfflineRowItem({
               )}
             </div>
           )}
-          {/* Action trigger overlay */}
           <button
             onClick={() => isComplete && handlePlayOffline(item)}
             disabled={!isComplete || item.type === "subtitle"}
@@ -1378,7 +1235,6 @@ function OfflineRowItem({
           </button>
         </div>
 
-        {/* Name and Metadata */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <h4
@@ -1386,7 +1242,7 @@ function OfflineRowItem({
               className={cn(
                 "font-black text-xs sm:text-sm line-clamp-2 break-words leading-snug",
                 isComplete
-                  ? "text-white hover:text-emerald-400 cursor-pointer transition-colors font-black"
+                  ? "text-white hover:text-emerald-400 cursor-pointer transition-colors"
                   : "text-white/60",
               )}
             >
@@ -1399,19 +1255,18 @@ function OfflineRowItem({
             )}
             {isComplete ? (
               <span className="inline-flex items-center gap-0.5 text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-1.5 py-0.5 rounded">
-                Natively Cached
+                Saved Offline
               </span>
             ) : (
               <span className="inline-flex items-center gap-0.5 text-[8px] font-black uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 px-1.5 py-0.5 rounded">
-                Downloading ({progress}%)
+                Saving ({progress}%)
               </span>
             )}
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-[11px] text-[var(--rf-text-dim)] font-semibold mt-1">
             <span className="shrink-0 flex items-center gap-1 text-[9px] sm:text-[10px]">
-              <Clock size={10} />
-              {getRelativeTime(item.timestamp)}
+              <Clock size={10} /> {getRelativeTime(item.timestamp)}
             </span>
             {item.expiresAt && (
               <span className="text-[9px] sm:text-[10px] text-amber-400/80 font-bold uppercase tracking-wider">
@@ -1425,44 +1280,56 @@ function OfflineRowItem({
               </span>
             )}
           </div>
+
+          {/* Progress bar — shown while saving */}
+          {!isComplete && (
+            <div className="mt-2 w-full max-w-xs">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[9px] font-black text-cyan-400">
+                  {blobProgress > 0
+                    ? `Downloading blob (${blobProgress}%)`
+                    : `Preparing (${storeProgress}%)`}
+                </span>
+                <span className="text-[9px] text-white/30 font-mono">
+                  {progress}%
+                </span>
+              </div>
+              <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden border border-white/[0.04]">
+                <motion.div
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full"
+                />
+              </div>
+              {item.downloadSpeed && item.downloadSpeed !== "0.0 MB/s" && (
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[9px] font-black text-cyan-400 tabular-nums">
+                    {item.downloadSpeed}
+                  </span>
+                  <span className="text-[9px] font-semibold text-white/30">
+                    {item.downloadedSize} / {item.totalSize}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Progress speed, percentages, cancel and contextual menus */}
+      {/* Cancel button while saving */}
       {!isComplete && (
-        <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 relative w-full sm:w-auto">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            {/* Real-time details */}
-            <div className="text-right shrink-0">
-              <p className="text-[10px] font-black text-cyan-400 tabular-nums">
-                {item.downloadSpeed || "0.0 MB/s"}
-              </p>
-              <p className="text-[9px] font-semibold text-white/50">
-                {item.downloadedSize || "0 MB"} / {item.totalSize || "0 MB"}
-              </p>
-            </div>
-
-            {/* Custom linear animated progress bar */}
-            <div className="w-20 bg-white/5 rounded-full h-1.5 overflow-hidden border border-white/[0.04] relative shrink-0">
-              <div
-                style={{ width: `${progress}%` }}
-                className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-300"
-              />
-            </div>
-
-            {/* Cancel download button */}
-            <button
-              onClick={() => cancelDownload(item.id)}
-              className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/20 text-red-400 transition-all shrink-0 cursor-pointer"
-              title="Cancel Download"
-            >
-              <Ban size={13} />
-            </button>
-          </div>
+        <div className="flex items-center justify-end shrink-0">
+          <button
+            onClick={() => cancelDownload(item.id)}
+            className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/20 text-red-400 transition-all shrink-0 cursor-pointer"
+            title="Cancel Download"
+          >
+            <Ban size={13} />
+          </button>
         </div>
       )}
 
-      {/* Absolute top-right action menu for completed items to prevent grid push */}
+      {/* Three-dot menu for completed items */}
       {isComplete && (
         <div className="absolute top-4 right-4 z-50">
           <div className="relative">
@@ -1471,12 +1338,9 @@ function OfflineRowItem({
                 setActiveMenuId(activeMenuId === item.id ? null : item.id)
               }
               className="p-1.5 rounded-xl text-[var(--rf-text-dim)] hover:text-white hover:bg-white/5 transition-all cursor-pointer dropdown-trigger"
-              title="More Actions"
             >
               <MoreVertical size={16} />
             </button>
-
-            {/* Dropdown Menu */}
             <AnimatePresence>
               {activeMenuId === item.id && (
                 <motion.div

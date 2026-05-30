@@ -21,7 +21,7 @@ import {
   useDownloadStore,
   DownloadHistoryItem,
 } from "./MovieDetails/hooks/useDownloadStore";
-// offlineDb only exposes saveMedia/deleteMedia — playback uses the stream URL directly
+import { saveVideoOffline } from "../utils/saveOffline";
 import { useSEO } from "../hooks/useSEO";
 import { cn } from "../utils/cn";
 
@@ -46,7 +46,6 @@ export default function WatchOffline() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-
   const history = useDownloadStore((s) => s.history);
 
   const [item, setItem] = useState<DownloadHistoryItem | null>(null);
@@ -54,10 +53,10 @@ export default function WatchOffline() {
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Player state
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
 
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -74,7 +73,7 @@ export default function WatchOffline() {
     description: item?.filename ?? "Watch your saved offline content",
   });
 
-  // ── Find item in store & resolve video source ─────────────────────────────
+  // ── Find item & resolve playback source ──────────────────────────────────
   useEffect(() => {
     if (!id) {
       setNotFound(true);
@@ -82,9 +81,7 @@ export default function WatchOffline() {
       return;
     }
 
-    // history item id is exactly what Downloads.tsx passes to navigate()
     const found = history.find((h) => h.id === id && h.isOffline);
-
     if (!found || !found.offlineComplete) {
       setNotFound(true);
       setLoading(false);
@@ -93,21 +90,38 @@ export default function WatchOffline() {
 
     setItem(found);
 
-    // offlineDb stores a silent placeholder MP4, not the real video.
-    // The actual playable URL is the stream URL saved on the history item.
-    const src = found.streamUrl || found.downloadUrl || found.url || null;
-    setVideoSrc(src);
-    setLoading(false);
+    // offlineSourceId = the original downloadId passed to saveVideoOffline.saveToWeb()
+    // found.id = the wrapped uniqueId used by useDownloadStore (different!)
+    const blobLookupId = found.offlineSourceId || found.id;
+    const getUrl = saveVideoOffline.getState().getPlaybackUrl;
+
+    getUrl(blobLookupId)
+      .then((url) => {
+        if (url) {
+          blobUrlRef.current = url; // track for cleanup
+          setVideoSrc(url);
+        } else {
+          // No blob — fall back to stream URL (needs internet)
+          const fallback =
+            found.streamUrl || found.downloadUrl || found.url || null;
+          setVideoSrc(fallback);
+        }
+      })
+      .catch(() => {
+        setVideoSrc(found.streamUrl || found.downloadUrl || found.url || null);
+      })
+      .finally(() => setLoading(false));
   }, [id, history]);
 
-  // Cleanup on unmount
+  // ── Cleanup blob URL on unmount ───────────────────────────────────────────
   useEffect(() => {
     return () => {
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
       if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
     };
   }, []);
 
-  // ── Autoplay once src is ready ────────────────────────────────────────────
+  // ── Autoplay ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!videoSrc || !videoRef.current) return;
     if (searchParams.get("autoplay") === "true") {
@@ -203,7 +217,7 @@ export default function WatchOffline() {
     setMuted(val === 0);
   };
 
-  // ── Render states ─────────────────────────────────────────────────────────
+  // ── States ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3">
@@ -246,8 +260,8 @@ export default function WatchOffline() {
           No Playable Source
         </h1>
         <p className="text-sm text-white/40 max-w-sm mb-8 leading-relaxed">
-          The stream URL was not saved with this offline item. Re-save the video
-          from the download modal to fix this.
+          The video file could not be found. Please re-save this video offline
+          while connected to the internet.
         </p>
         <button
           onClick={() => navigate("/downloads")}
@@ -323,7 +337,7 @@ export default function WatchOffline() {
           }}
           onError={() =>
             setError(
-              "Playback failed. The stream URL may have expired — re-save this video to fix it.",
+              "Playback failed. The video may not have fully saved — try re-saving while online.",
             )
           }
         />
@@ -355,7 +369,6 @@ export default function WatchOffline() {
             >
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
 
-              {/* Title */}
               <div className="relative px-5 pb-1 pointer-events-none">
                 <p className="text-white font-black text-sm md:text-base leading-snug line-clamp-1">
                   {item!.title}
@@ -367,7 +380,6 @@ export default function WatchOffline() {
                 )}
               </div>
 
-              {/* Seek */}
               <div
                 className="relative px-4 pb-1 pointer-events-auto"
                 onClick={(e) => e.stopPropagation()}
@@ -387,7 +399,6 @@ export default function WatchOffline() {
                 </div>
               </div>
 
-              {/* Control buttons */}
               <div
                 className="relative flex items-center justify-between px-4 pb-5 pointer-events-auto"
                 onClick={(e) => e.stopPropagation()}
@@ -450,7 +461,6 @@ export default function WatchOffline() {
                     />
                   </div>
                 </div>
-
                 <div className="flex items-center gap-2">
                   {item!.quality && (
                     <span className="hidden sm:flex text-[10px] font-black text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-1 rounded-lg">

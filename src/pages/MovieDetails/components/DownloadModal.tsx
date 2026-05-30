@@ -33,6 +33,8 @@ import {
 } from "../../../utils/download";
 import { formatFileSize } from "../../../utils/format";
 import { lockBodyScroll, unlockBodyScroll } from "../../../utils/scrollLock";
+import { saveVideoOffline } from "../../../utils/saveOffline";
+
 import { OptimizedImage } from "../../../components/ui/OptimizedImage";
 import { trackUmamiEvent } from "../../../hooks/useAnalytics";
 import toast from "react-hot-toast";
@@ -184,62 +186,76 @@ export const DownloadModal = ({
 
     const coverImg = subject.cover?.url || subject.stills?.url;
 
-    if (isOfflineMode) {
-      addOfflineDownload({
-        id: downloadId,
-        title: displayTitle,
-        filename: filename,
-        quality: qualityStr,
-        type: "movie",
-        url: src.download_url || src.stream_url,
-        downloadUrl: src.download_url,
-        streamUrl: src.stream_url,
-        coverUrl: coverImg,
-      });
+   if (isOfflineMode) {
+     const videoUrl = src.download_url || src.stream_url;
 
-      // Auto-download subtitles for single offline episode if any exist
-      if (subtitles && subtitles.length > 0) {
-        subtitles.forEach((sub, index) => {
-          const ext = sub.url
-            ? sub.url.split(".").pop()?.split("?")[0] || "srt"
-            : "srt";
-          const subId = `sub_${sub.id || index}_offline_${downloadId}`;
-          addOfflineDownload({
-            id: subId,
-            title: subject.title,
-            filename: buildSubtitleFilename(
-              subject.title,
-              sub.lanName,
-              episodeLabel,
-              subject.releaseDate,
-              ext,
-            ),
-            type: "subtitle",
-            url: sub.url,
-          });
-        });
-      }
+     // 1. Add to useDownloadStore — drives the progress UI on Downloads page
+     addOfflineDownload({
+       id: downloadId, // ← this becomes offlineSourceId inside the store
+       title: displayTitle,
+       filename: filename,
+       quality: qualityStr,
+       type: "movie",
+       url: videoUrl,
+       downloadUrl: src.download_url,
+       streamUrl: src.stream_url,
+       coverUrl: coverImg,
+     });
 
-      toast(
-        (t) => (
-          <span className="flex items-center gap-2">
-            <span>Added to offline storage with subtitles!</span>
-            <button
-              onClick={() => {
-                toast.dismiss(t.id);
-                navigate("/downloads");
-              }}
-              className="text-cyan-400 font-black hover:underline ml-1 cursor-pointer"
-            >
-              Go to Downloads
-            </button>
-          </span>
-        ),
-        { duration: 5000 },
-      );
-      onClose();
-      return;
-    }
+     if (videoUrl) {
+       saveVideoOffline.getState().saveToWeb(
+         downloadId, // same id so WatchOffline can find it via offlineSourceId
+         displayTitle,
+         videoUrl,
+         qualityStr,
+         src.format,
+         episodeLabel,
+       );
+     }
+
+     // Auto-download subtitles for single offline episode if any exist
+     if (subtitles && subtitles.length > 0) {
+       subtitles.forEach((sub, index) => {
+         const ext = sub.url
+           ? sub.url.split(".").pop()?.split("?")[0] || "srt"
+           : "srt";
+         const subId = `sub_${sub.id || index}_offline_${downloadId}`;
+         addOfflineDownload({
+           id: subId,
+           title: subject.title,
+           filename: buildSubtitleFilename(
+             subject.title,
+             sub.lanName,
+             episodeLabel,
+             subject.releaseDate,
+             ext,
+           ),
+           type: "subtitle",
+           url: sub.url,
+         });
+       });
+     }
+
+     toast(
+       (t) => (
+         <span className="flex items-center gap-2">
+           <span>Saving offline — takes a moment to download fully...</span>
+           <button
+             onClick={() => {
+               toast.dismiss(t.id);
+               navigate("/downloads");
+             }}
+             className="text-cyan-400 font-black hover:underline ml-1 cursor-pointer"
+           >
+             Go to Downloads
+           </button>
+         </span>
+       ),
+       { duration: 6000 },
+     );
+     onClose();
+     return;
+   }
 
     addToHistory({
       id: downloadId,

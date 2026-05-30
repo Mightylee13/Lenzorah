@@ -7,6 +7,9 @@
  * 2. Per-page lock uses PageLocked component with countdown timer
  * 3. Polling hook for real-time maintenance sync
  */
+
+import { registerServiceWorker } from "./hooks/useOffline";
+import { OfflineBanner } from "./components/OfflineBanner";
 import { startHeartbeat, getSessionId } from "./hooks/useAnalytics";
 
 import WatchOffline from "./pages/WatchOffline";
@@ -195,6 +198,7 @@ function AppContent() {
           success: { iconTheme: { primary: "#e50914", secondary: "#fff" } },
         }}
       />
+      <OfflineBanner />
 
       {/* Navbar — always visible except admin */}
       {!isAdminPage && (
@@ -271,3 +275,4 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+registerServiceWorker();
